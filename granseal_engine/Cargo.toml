@@ -1,0 +1,35 @@
+[package]
+name = "granseal_engine"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+cfg-if = "1.0.0"
+winit = "0.26.1"
+env_logger = "0.9.0"
+log = "0.4.17"
+wgpu = "0.13.0"
+pollster = "0.2.5"
+bytemuck = {version = "1.9.1", features = ["derive","extern_crate_alloc"]}
+anyhow = "1.0.58"
+cgmath = "0.18.0"
+rand = "0.8.5"
+
+[dependencies.image]
+version = "0.24.2"
+default-features = false
+features = ["png","jpeg"]
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+console_error_panic_hook = "0.1.6"
+console_log = "0.2.0"
+wgpu = { version = "0.13.0", features = ["webgl"]}
+wasm-bindgen = "0.2.81"
+wasm-bindgen-futures = "0.4.31"
+web-sys = { version = "0.3.58", features = [
+    "Document",
+    "Window",
+    "Element",
+]}

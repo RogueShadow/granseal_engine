@@ -1,0 +1,468 @@
+extern crate core;
+
+mod texture;
+mod shape;
+
+use std::io::Cursor;
+use rand::prelude::*;
+use image::GenericImageView;
+use winit::event::WindowEvent;
+use winit::window::Window;
+use winit::{
+    event::*,
+    event_loop::{ControlFlow, EventLoop},
+    window::WindowBuilder,
+};
+
+#[cfg(target_arch="wasm32")]
+use wasm_bindgen::prelude::*;
+use wgpu;
+use wgpu::util::DeviceExt;
+use winit::dpi::{PhysicalSize, Size};
+use winit::event::WindowEvent::MouseInput;
+use crate::shape::*;
+
+struct ShapePipeline {
+    render_pipeline: wgpu::RenderPipeline,
+    screen_uniform: ScreenUniform,
+    screen_buffer: wgpu::Buffer,
+    screen_bind_group: wgpu::BindGroup,
+    shapes: Vec<Shape>,
+    shape_buffer: wgpu::Buffer,
+    clear_color: [f64; 4],
+}
+
+impl ShapePipeline {
+    fn new(config: &wgpu::SurfaceConfiguration, device: &wgpu::Device) -> Self {
+        let clear_color = [0.1,0.2,0.3,1.0];
+        let screen_uniform = ScreenUniform::new(config.width as f32,config.height as f32);
+        let screen_buffer = device.create_buffer_init(
+            &wgpu::util::BufferInitDescriptor {
+                label: Some("Screen Buffer"),
+                contents: bytemuck::cast_slice(&[screen_uniform]),
+                usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+            }
+        );
+        let screen_bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            entries: &[
+                wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::VERTEX,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count:  None,
+                }
+            ],
+            label: Some("screen_bind_group_layout"),
+        });
+        let screen_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            layout: &screen_bind_group_layout,
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: screen_buffer.as_entire_binding(),
+                }
+            ],
+            label: Some("screen_bind_group"),
+        });
+        let mut shapes = vec![];
+        shapes.push(Shape::square(0.0, 0.0, 100.0).color(RED));
+        shapes.push(Shape::square(0.0, config.height as f32 - 100.0, 100.0).color(GREEN));
+        shapes.push(Shape::square(0.0,config.height as f32 - 100.0,100.0).color(CYAN));
+        shapes.push(Shape::new(config.width as f32 - 100.0, 0.0, 100.0, 100.0, 0.0, 0.0, 1.0, 1.0, 0));
+        shapes.push(Shape::new(config.width as f32 - 200.0, config.height as f32 - 200.0, 100.0, 100.0, 1.0, 1.0, 0.0, 1.0, 0));
+        shapes.push(Shape::new(config.width as f32 - 100.0, config.height as f32 - 100.0, 100.0, 100.0, 0.0, 1.0, 1.0, 1.0, 0));
+        shapes.push(Shape::new(200.0, 200.0, 32.0, 64.0, 1.0, 1.0, 1.0, 1.0, 0));
+        shapes.push(Shape::new(100.0, 200.0, 64.0, 32.0, 0.0, 0.0, 0.0, 1.0, 0));
+        shapes.push(Shape::new(200.0, 300.0, 32.0, 64.0, 0.5, 0.5, 0.5, 1.0, 1));
+        shapes.push(Shape::new(100.0, 300.0, 64.0, 32.0, 1.0, 0.5, 0.25, 1.0, 1));
+
+
+        let mut r = rand::thread_rng();
+        for x in 0..10000 {
+            let s = Shape::new(
+                r.gen_range(0.0..config.width as f32),
+                r.gen_range(0.0..config.height as f32),
+                8.0 + r.gen_range(0.0..128.0),
+                8.0 + r.gen_range(0.0..128.0),
+                r.gen(),
+                r.gen(),
+                r.gen(),
+                1.0,
+                r.gen_range(0..2),
+            );
+            shapes.push(s);
+        }
+
+        let shape_buffer = device.create_buffer_init(
+            &wgpu::util::BufferInitDescriptor {
+                label: Some("Shape Buffer"),
+                contents: bytemuck::cast_slice(shapes.as_slice()),
+                usage: wgpu::BufferUsages::VERTEX
+            }
+        );
+        let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+            label: Some("Shader"),
+            source: wgpu::ShaderSource::Wgsl(include_str!("shape_shader.wgsl").into()),
+        });
+
+
+        let render_pipeline_layout =
+            device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                label: Some("Shape Render Pipeline Layout"),
+                bind_group_layouts: &[&screen_bind_group_layout],
+                push_constant_ranges: &[],
+            });
+        let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+            label: Some("Shape Render Pipeline"),
+            layout: Some(&render_pipeline_layout),
+            vertex: wgpu::VertexState {
+                module: &shader,
+                entry_point: "vs_main",
+                buffers: &[Shape::desc()],
+            },
+            fragment: Some(wgpu::FragmentState {
+                module: &shader,
+                entry_point: "fs_main",
+                targets: &[Some(wgpu::ColorTargetState {
+                    format: config.format,
+                    blend: Some(wgpu::BlendState::REPLACE),
+                    write_mask: wgpu::ColorWrites::ALL,
+                })],
+            }),
+            primitive: wgpu::PrimitiveState {
+                topology: wgpu::PrimitiveTopology::TriangleStrip,
+                strip_index_format: None,
+                front_face: wgpu::FrontFace::Ccw,
+                cull_mode: Some(wgpu::Face::Back),
+                polygon_mode: wgpu::PolygonMode::Fill,
+                unclipped_depth: false,
+                conservative: false,
+            },
+            depth_stencil: None,
+            multisample: wgpu::MultisampleState {
+                count: 1,
+                mask: !0,
+                alpha_to_coverage_enabled: true,
+            },
+            multiview: None,
+        });
+
+        Self {
+            render_pipeline,
+            screen_uniform,
+            screen_buffer,
+            screen_bind_group,
+            shapes,
+            shape_buffer,
+            clear_color,
+        }
+    }
+}
+
+struct StateShapeRender {
+    surface: wgpu::Surface,
+    device: wgpu::Device,
+    queue: wgpu::Queue,
+    config: wgpu::SurfaceConfiguration,
+    size: winit::dpi::PhysicalSize<u32>,
+    pipeline: ShapePipeline,
+    mouse_pos: [f64; 2],
+}
+
+impl StateShapeRender {
+    async fn new(window: &Window) -> Self {
+        let size = window.inner_size();
+
+        let instance = wgpu::Instance::new(wgpu::Backends::all());
+        let surface = unsafe { instance.create_surface(window) };
+        let adapter = instance.request_adapter(
+            &wgpu::RequestAdapterOptions {
+                power_preference: wgpu::PowerPreference::HighPerformance,
+                compatible_surface: Some(&surface),
+                force_fallback_adapter: false,
+            },
+        ).await.unwrap();
+
+        let (device, queue) = adapter.request_device(
+            &wgpu::DeviceDescriptor {
+                features: wgpu::Features::empty(),
+                limits: if cfg!(target_arch = "wasm32") {
+                    wgpu::Limits::downlevel_webgl2_defaults()
+                } else {
+                    wgpu::Limits::default()
+                },
+                label: None,
+            },
+            None,
+        ).await.unwrap();
+
+        let config = wgpu::SurfaceConfiguration {
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+            format: surface.get_supported_formats(&adapter).pop().unwrap(),
+            width: size.width,
+            height: size.height,
+            present_mode: wgpu::PresentMode::Mailbox,
+        };
+        surface.configure(&device, &config);
+
+        let mouse_pos = [0.0,0.0];
+
+        let pipeline = ShapePipeline::new(&config,&device);
+
+        StateShapeRender {
+            surface,
+            device,
+            queue,
+            config,
+            size,
+            pipeline,
+            mouse_pos,
+        }
+    }
+
+    fn resize(&mut self, new_size: winit::dpi::PhysicalSize<u32>) {
+        if new_size.width > 0 && new_size.height > 0 {
+            self.size = new_size;
+            self.config.width = new_size.width;
+            self.config.height = new_size.height;
+            self.surface.configure(&self.device,&self.config);
+            self.pipeline.screen_uniform.update(new_size.width as f32,new_size.height as f32);
+            self.queue.write_buffer(&self.pipeline.screen_buffer, 0, bytemuck::cast_slice(&[self.pipeline.screen_uniform]));
+        }
+    }
+
+    fn input(&mut self, event: &WindowEvent) -> bool {
+        match event {
+            WindowEvent::CursorMoved {
+                position,
+                ..
+            } => {
+                self.mouse_pos = [position.x,position.y];
+                let rect = Shape {
+                    x: self.mouse_pos[0] as f32,
+                    y: self.mouse_pos[1] as f32,
+                    w: 32.0,
+                    h: 32.0,
+                    r: 1.0,
+                    g: 1.0,
+                    b: 1.0,
+                    a: 1.0,
+                    k: 1,
+                };
+                self.pipeline.shapes.push(rect);
+                //self.queue.write_buffer(&self.rect_buffer,0,bytemuck::cast_slice(self.rects.as_slice()));
+                let shape_buffer = self.device.create_buffer_init(
+                    &wgpu::util::BufferInitDescriptor {
+                        label: Some("Shape Buffer"),
+                        contents: bytemuck::cast_slice(self.pipeline.shapes.as_slice()),
+                        usage: wgpu::BufferUsages::VERTEX
+                    }
+                );
+                self.pipeline.shape_buffer.destroy();
+                self.pipeline.shape_buffer = shape_buffer;
+                true
+            }
+            WindowEvent::MouseInput {
+                state: ElementState::Pressed,
+                button: MouseButton::Left,
+                device_id,
+                ..
+            } => {
+                let rect = Shape {
+                    x: self.mouse_pos[0] as f32,
+                    y: self.mouse_pos[1] as f32,
+                    w: 32.0,
+                    h: 32.0,
+                    r: 1.0,
+                    g: 1.0,
+                    b: 1.0,
+                    a: 1.0,
+                    k: 1,
+                };
+                self.pipeline.shapes.push(rect);
+                //self.queue.write_buffer(&self.rect_buffer,0,bytemuck::cast_slice(self.rects.as_slice()));
+                let shape_buffer = self.device.create_buffer_init(
+                    &wgpu::util::BufferInitDescriptor {
+                        label: Some("Shape Buffer"),
+                        contents: bytemuck::cast_slice(self.pipeline.shapes.as_slice()),
+                        usage: wgpu::BufferUsages::VERTEX
+                    }
+                );
+                self.pipeline.shape_buffer.destroy();
+                self.pipeline.shape_buffer = shape_buffer;
+              true
+            },
+            _ => false
+        }
+    }
+
+    fn update(&mut self) {
+
+    }
+
+    fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
+        let output = self.surface.get_current_texture()?;
+        let view = output.texture.create_view(&wgpu::TextureViewDescriptor::default());
+        let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+            label: Some("Render Encoder"),
+        });
+
+        {
+            let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: Some("Render Pass"),
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    view:  &view,
+                    resolve_target: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(wgpu::Color {
+                            r: *self.pipeline.clear_color.get(0).unwrap(),
+                            g: *self.pipeline.clear_color.get(1).unwrap(),
+                            b: *self.pipeline.clear_color.get(2).unwrap(),
+                            a: *self.pipeline.clear_color.get(3).unwrap(),
+                        }),
+                        store: true,
+                    },
+                })],
+                depth_stencil_attachment: None
+            });
+
+            render_pass.set_pipeline(&self.pipeline.render_pipeline);
+            render_pass.set_vertex_buffer(0,self.pipeline.shape_buffer.slice(..));
+            render_pass.set_bind_group(0,&self.pipeline.screen_bind_group,&[]);
+            render_pass.draw(0..5 as u32, 0..self.pipeline.shapes.len() as u32);
+        }
+
+        self.queue.submit(std::iter::once(encoder.finish()));
+        output.present();
+
+        Ok(())
+    }
+}
+
+#[rustfmt::skip]
+pub const OPENGL_TO_WGPU_MATRIX: cgmath::Matrix4<f32> = cgmath::Matrix4::new(
+    1.0, 0.0, 0.0, 0.0,
+    0.0, 1.0, 0.0, 0.0,
+    0.0, 0.0, 0.5, 0.0,
+    0.0, 0.0, 0.5, 1.0,
+);
+
+#[repr(C)]
+#[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
+struct ScreenUniform {
+    width: f32,
+    height: f32,
+}
+
+impl ScreenUniform {
+    fn new(width: f32, height: f32) -> Self {
+        Self {
+            width,
+            height,
+        }
+    }
+    fn update(mut self, width: f32, height: f32) -> Self {
+        self.width = width;
+        self.height = height;
+        self
+    }
+}
+
+#[cfg_attr(target_arch="wasm32", wasm_bindgen(start))]
+pub async fn run(title: &'static str, width: i32, height: i32) {
+    cfg_if::cfg_if! {
+        if #[cfg(target_arch = "wasm32")] {
+            std::panic::set_hook(Box::new(console_error_panic_hook::hook));
+            console_log::init_with_level(log::Level::Warn).expect("Couldn't initialize logger");
+        } else {
+            env_logger::init();
+        }
+    }
+
+
+    let event_loop = EventLoop::new();
+    let window = WindowBuilder::new()
+        .with_title(title)
+        .with_inner_size(PhysicalSize {
+            width,
+            height,
+        })
+        .build(&event_loop)
+        .unwrap();
+
+    #[cfg(target_arch = "wasm32")]
+        {
+            // Winit prevents sizing with CSS, so we have to set
+            // the size manually when on web.
+            use winit::dpi::PhysicalSize;
+            window.set_inner_size(PhysicalSize::new(450, 400));
+
+            use winit::platform::web::WindowExtWebSys;
+            web_sys::window()
+                .and_then(|win| win.document())
+                .and_then(|doc| {
+                    let dst = doc.get_element_by_id("wasm-example")?;
+                    let canvas = web_sys::Element::from(window.canvas());
+                    dst.append_child(&canvas).ok()?;
+                    Some(())
+                })
+                .expect("Couldn't append canvas to document body.");
+        }
+
+    let mut state = StateShapeRender::new(&window).await;
+    let mut frames = 0;
+    let mut timer = std::time::Instant::now();
+
+    event_loop.run(move |event, _, control_flow| {
+        match event {
+            Event::WindowEvent {
+                ref event,
+                window_id,
+            } if window_id == window.id() => if !state.input(event) {
+                match event {
+                    WindowEvent::CloseRequested
+                    | WindowEvent::KeyboardInput {
+                        input:
+                        KeyboardInput {
+                            state: ElementState::Pressed,
+                            virtual_keycode: Some(VirtualKeyCode::Escape),
+                            ..
+                        },
+                        ..
+                    } => *control_flow = ControlFlow::Exit,
+                    WindowEvent::Resized(physical_size) => {
+                        state.resize(*physical_size);
+                    }
+                    WindowEvent::ScaleFactorChanged { new_inner_size, ..} => {
+                        state.resize( **new_inner_size);
+                    }
+                    _ => {}
+                }
+            }
+            Event::RedrawRequested(window_id) if window_id == window.id() => {
+                state.update();
+                match state.render() {
+                    Ok(_) => {
+                        frames += 1;
+                        if timer.elapsed().as_secs_f64() > 1.0 {
+                            window.set_title(format!("{}: {}",title,frames).as_str());
+                            frames = 0;
+                            timer = std::time::Instant::now();
+                        }
+                    }
+                    Err(wgpu::SurfaceError::Lost) => state.resize(state.size),
+                    Err(wgpu::SurfaceError::OutOfMemory) => *control_flow = ControlFlow::Exit,
+                    Err(e) => eprintln!("{:?}",e),
+                }
+            }
+            Event::MainEventsCleared => {
+                window.request_redraw();
+            }
+            _ => {}
+        }
+    });
+}
