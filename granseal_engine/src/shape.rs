@@ -1,5 +1,6 @@
 use wgpu::util::DeviceExt;
 
+#[derive(Copy,Clone,Debug)]
 pub struct Color {
     r: f32,
     g: f32,
@@ -8,12 +9,12 @@ pub struct Color {
 }
 
 impl Color {
-    const fn  new(r: f32, g: f32, b: f32, a: f32) -> Self {
+    pub const fn  new(r: f32, g: f32, b: f32, a: f32) -> Self {
         Self {
             r,g,b,a,
         }
     }
-    const fn rgb(r: f32, g: f32, b: f32) -> Self {
+    pub const fn rgb(r: f32, g: f32, b: f32) -> Self {
         Self::new(r,g,b,1.0)
     }
 }

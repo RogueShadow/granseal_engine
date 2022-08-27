@@ -9,3 +9,4 @@ edition = "2021"
 granseal_engine = {path = "../granseal_engine"}
 pollster = "0.2.5"
 winit = "0.26.1"
+rand = "0.8.5"
