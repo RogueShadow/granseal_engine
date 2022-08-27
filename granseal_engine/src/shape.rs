@@ -1,4 +1,4 @@
-
+use wgpu::util::DeviceExt;
 
 pub struct Color {
     r: f32,

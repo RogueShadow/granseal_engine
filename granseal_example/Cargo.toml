@@ -8,3 +8,4 @@ edition = "2021"
 [dependencies]
 granseal_engine = {path = "../granseal_engine"}
 pollster = "0.2.5"
+winit = "0.26.1"

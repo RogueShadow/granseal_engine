@@ -1,8 +1,9 @@
 extern crate core;
 
 mod texture;
-mod shape;
+pub mod shape;
 
+use std::collections::HashMap;
 use std::io::Cursor;
 use rand::prelude::*;
 use image::GenericImageView;
@@ -69,33 +70,6 @@ impl ShapePipeline {
             label: Some("screen_bind_group"),
         });
         let mut shapes = vec![];
-        shapes.push(Shape::square(0.0, 0.0, 100.0).color(RED));
-        shapes.push(Shape::square(0.0, config.height as f32 - 100.0, 100.0).color(GREEN));
-        shapes.push(Shape::square(0.0,config.height as f32 - 100.0,100.0).color(CYAN));
-        shapes.push(Shape::new(config.width as f32 - 100.0, 0.0, 100.0, 100.0, 0.0, 0.0, 1.0, 1.0, 0));
-        shapes.push(Shape::new(config.width as f32 - 200.0, config.height as f32 - 200.0, 100.0, 100.0, 1.0, 1.0, 0.0, 1.0, 0));
-        shapes.push(Shape::new(config.width as f32 - 100.0, config.height as f32 - 100.0, 100.0, 100.0, 0.0, 1.0, 1.0, 1.0, 0));
-        shapes.push(Shape::new(200.0, 200.0, 32.0, 64.0, 1.0, 1.0, 1.0, 1.0, 0));
-        shapes.push(Shape::new(100.0, 200.0, 64.0, 32.0, 0.0, 0.0, 0.0, 1.0, 0));
-        shapes.push(Shape::new(200.0, 300.0, 32.0, 64.0, 0.5, 0.5, 0.5, 1.0, 1));
-        shapes.push(Shape::new(100.0, 300.0, 64.0, 32.0, 1.0, 0.5, 0.25, 1.0, 1));
-
-
-        let mut r = rand::thread_rng();
-        for x in 0..10000 {
-            let s = Shape::new(
-                r.gen_range(0.0..config.width as f32),
-                r.gen_range(0.0..config.height as f32),
-                8.0 + r.gen_range(0.0..128.0),
-                8.0 + r.gen_range(0.0..128.0),
-                r.gen(),
-                r.gen(),
-                r.gen(),
-                1.0,
-                r.gen_range(0..2),
-            );
-            shapes.push(s);
-        }
 
         let shape_buffer = device.create_buffer_init(
             &wgpu::util::BufferInitDescriptor {
@@ -171,10 +145,12 @@ struct StateShapeRender {
     size: winit::dpi::PhysicalSize<u32>,
     pipeline: ShapePipeline,
     mouse_pos: [f64; 2],
+    key_down: HashMap<VirtualKeyCode,bool>,
+    game_state: Box<dyn GransealGameState>,
 }
 
 impl StateShapeRender {
-    async fn new(window: &Window) -> Self {
+    async fn new(window: &Window, game_state: Box<dyn GransealGameState>) -> Self {
         let size = window.inner_size();
 
         let instance = wgpu::Instance::new(wgpu::Backends::all());
@@ -213,6 +189,8 @@ impl StateShapeRender {
 
         let pipeline = ShapePipeline::new(&config,&device);
 
+        let key_down = HashMap::new();
+
         StateShapeRender {
             surface,
             device,
@@ -221,6 +199,8 @@ impl StateShapeRender {
             size,
             pipeline,
             mouse_pos,
+            key_down,
+            game_state,
         }
     }
 
@@ -236,75 +216,47 @@ impl StateShapeRender {
     }
 
     fn input(&mut self, event: &WindowEvent) -> bool {
-        match event {
-            WindowEvent::CursorMoved {
-                position,
-                ..
-            } => {
-                self.mouse_pos = [position.x,position.y];
-                let rect = Shape {
-                    x: self.mouse_pos[0] as f32,
-                    y: self.mouse_pos[1] as f32,
-                    w: 32.0,
-                    h: 32.0,
-                    r: 1.0,
-                    g: 1.0,
-                    b: 1.0,
-                    a: 1.0,
-                    k: 1,
-                };
-                self.pipeline.shapes.push(rect);
-                //self.queue.write_buffer(&self.rect_buffer,0,bytemuck::cast_slice(self.rects.as_slice()));
-                let shape_buffer = self.device.create_buffer_init(
-                    &wgpu::util::BufferInitDescriptor {
-                        label: Some("Shape Buffer"),
-                        contents: bytemuck::cast_slice(self.pipeline.shapes.as_slice()),
-                        usage: wgpu::BufferUsages::VERTEX
-                    }
-                );
-                self.pipeline.shape_buffer.destroy();
-                self.pipeline.shape_buffer = shape_buffer;
-                true
-            }
-            WindowEvent::MouseInput {
-                state: ElementState::Pressed,
-                button: MouseButton::Left,
-                device_id,
-                ..
-            } => {
-                let rect = Shape {
-                    x: self.mouse_pos[0] as f32,
-                    y: self.mouse_pos[1] as f32,
-                    w: 32.0,
-                    h: 32.0,
-                    r: 1.0,
-                    g: 1.0,
-                    b: 1.0,
-                    a: 1.0,
-                    k: 1,
-                };
-                self.pipeline.shapes.push(rect);
-                //self.queue.write_buffer(&self.rect_buffer,0,bytemuck::cast_slice(self.rects.as_slice()));
-                let shape_buffer = self.device.create_buffer_init(
-                    &wgpu::util::BufferInitDescriptor {
-                        label: Some("Shape Buffer"),
-                        contents: bytemuck::cast_slice(self.pipeline.shapes.as_slice()),
-                        usage: wgpu::BufferUsages::VERTEX
-                    }
-                );
-                self.pipeline.shape_buffer.destroy();
-                self.pipeline.shape_buffer = shape_buffer;
-              true
-            },
-            _ => false
+        if self.game_state.input(event) {
+            return true;
         }
+
+        match event {
+            WindowEvent::KeyboardInput {
+                input,
+                ..
+            } => {
+                match input.state {
+                    ElementState::Pressed => {
+                        self.key_down.insert(input.virtual_keycode.unwrap(),true);
+                        println!("{:?}",input.virtual_keycode);
+                    },
+                    ElementState::Released => {
+                        self.key_down.insert(input.virtual_keycode.unwrap(),false);
+                        println!("{:?}",input.virtual_keycode);
+                    },
+                }
+            }
+            _ => {}
+        }
+        return false;
     }
 
     fn update(&mut self) {
-
+        self.game_state.update(&self.key_down);
     }
 
     fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
+        self.game_state.render(&mut self.pipeline.shapes);
+        let shape_buffer = self.device.create_buffer_init(
+            &wgpu::util::BufferInitDescriptor {
+                label: Some("Shape Buffer"),
+                contents: bytemuck::cast_slice(self.pipeline.shapes.as_slice()),
+                usage: wgpu::BufferUsages::VERTEX
+            }
+        );
+        self.pipeline.shape_buffer.destroy();
+        self.pipeline.shape_buffer = shape_buffer;
+
         let output = self.surface.get_current_texture()?;
         let view = output.texture.create_view(&wgpu::TextureViewDescriptor::default());
         let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
@@ -372,8 +324,24 @@ impl ScreenUniform {
     }
 }
 
+#[derive(Clone,Copy)]
+pub struct GransealGameConfig {
+    pub width: i32,
+    pub height: i32,
+    pub title: &'static str,
+}
+
+pub trait GransealGameState {
+    fn config(&mut self) -> &GransealGameConfig;
+    fn input(&mut self, event: &WindowEvent) -> bool;
+    fn update(&mut self, key_down: &HashMap<VirtualKeyCode,bool>);
+    fn render(&mut self, shapes: &mut Vec<Shape>);
+}
+
 #[cfg_attr(target_arch="wasm32", wasm_bindgen(start))]
-pub async fn run(title: &'static str, width: i32, height: i32) {
+pub async fn run(mut game_state: Box<dyn GransealGameState>) {
+
+
     cfg_if::cfg_if! {
         if #[cfg(target_arch = "wasm32")] {
             std::panic::set_hook(Box::new(console_error_panic_hook::hook));
@@ -383,13 +351,14 @@ pub async fn run(title: &'static str, width: i32, height: i32) {
         }
     }
 
+    let config = game_state.config().clone();
 
     let event_loop = EventLoop::new();
     let window = WindowBuilder::new()
-        .with_title(title)
+        .with_title(config.title)
         .with_inner_size(PhysicalSize {
-            width,
-            height,
+            width: config.width,
+            height: config.height,
         })
         .build(&event_loop)
         .unwrap();
@@ -413,7 +382,7 @@ pub async fn run(title: &'static str, width: i32, height: i32) {
                 .expect("Couldn't append canvas to document body.");
         }
 
-    let mut state = StateShapeRender::new(&window).await;
+    let mut state = StateShapeRender::new(&window, game_state).await;
     let mut frames = 0;
     let mut timer = std::time::Instant::now();
 
@@ -449,7 +418,7 @@ pub async fn run(title: &'static str, width: i32, height: i32) {
                     Ok(_) => {
                         frames += 1;
                         if timer.elapsed().as_secs_f64() > 1.0 {
-                            window.set_title(format!("{}: {}",title,frames).as_str());
+                            window.set_title(format!("{}: {}",config.title,frames).as_str());
                             frames = 0;
                             timer = std::time::Instant::now();
                         }
