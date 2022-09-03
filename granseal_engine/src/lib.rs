@@ -2,9 +2,11 @@ extern crate core;
 
 mod texture;
 pub mod shape;
+pub mod events;
 
 use std::collections::HashMap;
 use std::io::Cursor;
+use std::time::Duration;
 use rand::prelude::*;
 use image::GenericImageView;
 use winit::event::WindowEvent;
@@ -21,6 +23,7 @@ use wgpu;
 use wgpu::util::DeviceExt;
 use winit::dpi::{PhysicalSize, Size};
 use winit::event::WindowEvent::MouseInput;
+use crate::events::{Key, KeyState, ModifierState};
 use crate::shape::*;
 
 struct ShapePipeline {
@@ -145,7 +148,7 @@ struct StateShapeRender {
     size: winit::dpi::PhysicalSize<u32>,
     pipeline: ShapePipeline,
     mouse_pos: [f64; 2],
-    key_down: HashMap<VirtualKeyCode,bool>,
+    key_down: HashMap<events::Key,bool>,
     game_state: Box<dyn GransealGameState>,
 }
 
@@ -216,33 +219,34 @@ impl StateShapeRender {
     }
 
     fn input(&mut self, event: &WindowEvent) -> bool {
-        if self.game_state.input(event) {
-            return true;
+        let granseal_event = map_events(event);
+        if granseal_event.is_some() {
+            match granseal_event.unwrap() {
+                events::Event::KeyEvent {
+                    state, key, modifiers
+                } => {
+                    match state {
+                        KeyState::Pressed => {
+                            self.key_down.insert(key,true);
+                        },
+                        KeyState::Released => {
+                            self.key_down.insert(key,false);
+                        }
+                    }
+                }
+                _ => {}
+            }
+            if self.game_state.event(&granseal_event.unwrap()) {
+                return true;
+            }
         }
 
-        match event {
-            WindowEvent::KeyboardInput {
-                input,
-                ..
-            } => {
-                match input.state {
-                    ElementState::Pressed => {
-                        self.key_down.insert(input.virtual_keycode.unwrap(),true);
-                        println!("{:?}",input.virtual_keycode);
-                    },
-                    ElementState::Released => {
-                        self.key_down.insert(input.virtual_keycode.unwrap(),false);
-                        println!("{:?}",input.virtual_keycode);
-                    },
-                }
-            }
-            _ => {}
-        }
+
         return false;
     }
 
-    fn update(&mut self) {
-        self.game_state.update(&self.key_down);
+    fn update(&mut self, deltaTime: Duration) {
+        self.game_state.update(deltaTime, &self.key_down);
     }
 
     fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
@@ -295,14 +299,6 @@ impl StateShapeRender {
     }
 }
 
-#[rustfmt::skip]
-pub const OPENGL_TO_WGPU_MATRIX: cgmath::Matrix4<f32> = cgmath::Matrix4::new(
-    1.0, 0.0, 0.0, 0.0,
-    0.0, 1.0, 0.0, 0.0,
-    0.0, 0.0, 0.5, 0.0,
-    0.0, 0.0, 0.5, 1.0,
-);
-
 #[repr(C)]
 #[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
 struct ScreenUniform {
@@ -331,11 +327,179 @@ pub struct GransealGameConfig {
     pub title: &'static str,
 }
 
+fn map_events(event: &WindowEvent) -> Option<events::Event> {
+    match event {
+        WindowEvent::KeyboardInput {
+            input: KeyboardInput { scancode, state, virtual_keycode, modifiers },
+            ..
+        } => {
+            if virtual_keycode.is_none() {return None;}
+            Some(events::Event::KeyEvent {
+                state: match state {
+                    ElementState::Pressed => {events::KeyState::Pressed}
+                    ElementState::Released => {events::KeyState::Released}
+                },
+                key: map_keys(&virtual_keycode.unwrap() ),
+                modifiers: map_modifiers(modifiers)
+            })
+        },
+        WindowEvent::MouseInput { device_id, state, button, modifiers } => {
+            Some(events::Event::MouseButton {
+                state: match state {
+                    ElementState::Pressed => {KeyState::Pressed}
+                    ElementState::Released => {KeyState::Released}
+                },
+                button: map_mouse_buttons(button),
+                modifiers: map_modifiers(modifiers),
+                position: [0.0,0.0]
+            })
+        }
+        _ => None
+    }
+}
+
+fn map_mouse_buttons(button: &MouseButton) -> events::MouseButton {
+    match button {
+        MouseButton::Left => {events::MouseButton::Left}
+        MouseButton::Right => {events::MouseButton::Right}
+        MouseButton::Middle => {events::MouseButton::Middle}
+        MouseButton::Other(b) => {events::MouseButton::Other(*b)}
+    }
+}
+
+fn map_modifiers(modifiers: &ModifiersState) -> events::ModifierState {
+    ModifierState {
+        shift: modifiers.shift(),
+        alt: modifiers.alt(),
+        ctrl: modifiers.ctrl(),
+    }
+}
+
+fn map_keys(key: &VirtualKeyCode) -> events::Key {
+
+    use VirtualKeyCode as V;
+    use Key as G;
+
+
+    let key = match key {
+        V::Escape => G::Escape,
+        V::F1 => G::F1,
+        V::F2 => G::F2,
+        V::F3 => G::F3,
+        V::F4 => G::F4,
+        V::F5 => G::F5,
+        V::F6 => G::F6,
+        V::F7 => G::F7,
+        V::F8 => G::F8,
+        V::F9 => G::F9,
+        V::F10 => G::F10,
+        V::F11 => G::F11,
+        V::F12 => G::F12,
+        V::Grave => G::Grave,
+        V::Key1 => G::Key1,
+        V::Key2 => G::Key2,
+        V::Key3 => G::Key3,
+        V::Key4 => G::Key4,
+        V::Key5 => G::Key5,
+        V::Key6 => G::Key6,
+        V::Key7 => G::Key7,
+        V::Key8 => G::Key8,
+        V::Key9 => G::Key9,
+        V::Key0 => G::Key0,
+        V::Minus => G::Minus,
+        V::Equals => G::Equals,
+        V::Back => G::BackSpace,
+        V::Tab => G::Tab,
+        V::Q => G::Q,
+        V::W => G::W,
+        V::E => G::E,
+        V::R => G::R,
+        V::T => G::T,
+        V::Y => G::Y,
+        V::U => G::U,
+        V::I => G::I,
+        V::O => G::O,
+        V::P => G::P,
+        V::LBracket => G::LBracket,
+        V::RBracket => G::RBracket,
+        V::Backslash => G::BackSlash,
+        V::Capital => G::CapsLock,
+        V::A => G::A,
+        V::S => G::S,
+        V::D => G::D,
+        V::F=> G::F,
+        V::G => G::G,
+        V::H => G::H,
+        V::J => G::J,
+        V::K => G::K,
+        V::L => G::L,
+        V::Semicolon => G::SemiColon,
+        V::Apostrophe => G::Apostrophe,
+        V::Return => G::Enter,
+        V::LShift => G::LShift,
+        V::Z => G::Z,
+        V::X => G::X,
+        V::C => G::C,
+        V::V => G::V,
+        V::B => G::B,
+        V::N => G::N,
+        V::M => G::M,
+        V::Comma => G::Comma,
+        V::Period => G::Period,
+        V::Slash => G::ForwardSlash,
+        V::RShift => G::RShift,
+        V::LControl => G::LCtrl,
+        V::LWin => G::LWin,
+        V::LAlt => G::LAlt,
+        V::Space => G::Space,
+        V::RAlt => G::RAlt,
+        V::RWin => G::RWin,
+        V::RControl => G::RCtrl,
+        V::Snapshot => G::PrintScreen,
+        V::Scroll => G::ScrollLock,
+        V::Pause => G::Pause,
+        V::Insert => G::Insert,
+        V::Home => G::Home,
+        V::PageUp => G::PageUp,
+        V::Delete => G::Delete,
+        V::End => G::End,
+        V::PageDown => G::PageDown,
+        V::Up => G::Up,
+        V::Left => G::Left,
+        V::Down => G::Down,
+        V::Right => G::Right,
+        V::Numlock => G::NumLock,
+        V::NumpadDivide => G::NumDivide,
+        V::NumpadMultiply => G::NumMultiply,
+        V::NumpadSubtract => G::NumSubtract,
+        V::Numpad7 => G::Num7,
+        V::Numpad8 => G::Num8,
+        V::Numpad9 => G::Num9,
+        V::NumpadAdd => G::NumAdd,
+        V::Numpad4 => G::Num4,
+        V::Numpad5 => G::Num5,
+        V::Numpad6 => G::Num6,
+        V::Numpad1 => G::Num1,
+        V::Numpad2 => G::Num2,
+        V::Numpad3 => G::Num3,
+        V::NumpadEnter => G::NumEnter,
+        V::Numpad0 => G::Num0,
+        V::NumpadDecimal => G::NumDecimal,
+        _ => G::NotImplemented,
+    };
+
+    key
+}
+
 pub trait GransealGameState {
     fn config(&mut self) -> &GransealGameConfig;
-    fn input(&mut self, event: &WindowEvent) -> bool;
-    fn update(&mut self, key_down: &HashMap<VirtualKeyCode,bool>);
+    fn event(&mut self, event: &events::Event) -> bool;
+    fn update(&mut self,delta: Duration, key_down: &HashMap<events::Key,bool>);
     fn render(&mut self, shapes: &mut Vec<Shape>);
+}
+
+pub fn start(state: Box<dyn GransealGameState>) {
+    pollster::block_on(run(state));
 }
 
 #[cfg_attr(target_arch="wasm32", wasm_bindgen(start))]
@@ -386,7 +550,9 @@ pub async fn run(mut game_state: Box<dyn GransealGameState>) {
     let mut frames = 0;
     let mut timer = std::time::Instant::now();
 
+
     event_loop.run(move |event, _, control_flow| {
+        let mut delta = std::time::Instant::now();
         match event {
             Event::WindowEvent {
                 ref event,
@@ -413,7 +579,10 @@ pub async fn run(mut game_state: Box<dyn GransealGameState>) {
                 }
             }
             Event::RedrawRequested(window_id) if window_id == window.id() => {
-                state.update();
+                let current_time = std::time::Instant::now();
+                let delta_time = current_time.duration_since(delta);
+                delta = current_time;
+                state.update(delta_time);
                 match state.render() {
                     Ok(_) => {
                         frames += 1;

@@ -1,7 +1,9 @@
 use std::collections::HashMap;
+use std::ops::{Deref, Index};
+use std::time::Duration;
 use rand::Rng;
-use winit::event::{ElementState, KeyboardInput, VirtualKeyCode, WindowEvent};
 use granseal_engine::{GransealGameConfig, run};
+use granseal_engine::events::{Event, Key};
 use granseal_engine::GransealGameState;
 use granseal_engine::shape::*;
 
@@ -29,10 +31,11 @@ pub struct Entity {
 impl Entity {
     fn random(w: f32, h: f32) -> Self {
         let mut r = rand::thread_rng();
+        let speed = 100.0;
         Self {
             pos: Vector2d::new(r.gen::<f32>() * w,r.gen::<f32>() * h),
             size: Vector2d::new(r.gen_range(16.0..64.00), r.gen_range(16.0..64.00)),
-            velocity: Vector2d::new( r.gen_range(-2.0..2.0), r.gen_range(-2.0..2.0)),
+            velocity: Vector2d::new( r.gen_range(-speed..speed), r.gen_range(-speed..speed)),
             color: Color::rgb(r.gen(),r.gen(),r.gen()),
         }
     }
@@ -50,13 +53,15 @@ impl GameState {
         let mut entities = vec![];
 
         let mut r = rand::thread_rng();
-
-        for x in (0..800).step_by(4) {
-            for y in (0..600).step_by(4) {
+        let step = 8;
+        let speed = 100.0;
+        for x in (0..800).step_by(step) {
+            for y in (0..600).step_by(step) {
                 entities.push(Entity {
                     pos: Vector2d::new(x as f32,y as f32),
-                    velocity: Vector2d::new(r.gen_range(-0.1..0.1),r.gen_range(-0.1..0.1)),
-                    size: Vector2d::new(4.0,4.0),
+                    velocity: Vector2d::new(r.gen_range(-speed..speed),r.gen_range(-speed..speed)),
+                    //velocity: Vector2d::new(0.0,0.0),
+                    size: Vector2d::new(step as f32, step as f32),
                     color: Color::rgb(r.gen(),r.gen(),r.gen()),
                 })
             }
@@ -81,25 +86,28 @@ impl GransealGameState for GameState {
     fn config(&mut self) -> &GransealGameConfig {
         &self.config
     }
-    fn input(&mut self, event: &WindowEvent) -> bool {
+    fn event(&mut self, event: &Event) -> bool {
+        println!("{:?}",event);
         false
     }
 
-    fn update(&mut self, key_down: &HashMap<VirtualKeyCode,bool>) {
-        use VirtualKeyCode::*;
-        let key = |k: VirtualKeyCode| -> bool {
-            *key_down.get(&k).unwrap_or(&false)
+    fn update(&mut self,delta: Duration, key_down: &HashMap<Key,bool>) {
+        use Key::*;
+        let key = |k: Key| -> bool {
+            if key_down.contains_key(&k) {
+                *key_down.index(&k)
+            } else {false}
         };
 
-        let speed = 0.75;
+        let speed = 50000.0 * delta.as_secs_f32() * 1000.0;
         if key(W) {self.position.y -= speed}
         if key(A) {self.position.x -= speed}
         if key(S) {self.position.y += speed}
         if key(D) {self.position.x += speed}
 
         for mut e in &mut self.entities {
-            e.pos.x += e.velocity.x;
-            e.pos.y += e.velocity.y;
+            e.pos.x += e.velocity.x * delta.as_secs_f32() * 1000.0;
+            e.pos.y += e.velocity.y * delta.as_secs_f32() * 1000.0;
             if e.pos.x <= 0.0 {e.velocity.x *= -1.0}
             if e.pos.y <= 0.0 {e.velocity.y *= -1.0}
             if e.pos.x >= self.config.width as f32 - e.size.x {e.velocity.x *= -1.0}
@@ -117,12 +125,14 @@ impl GransealGameState for GameState {
         let mut r = rand::thread_rng();
         for e in &mut self.entities {
             e.color = Color::rgb(r.gen(),r.gen(),r.gen());
-            shapes.push(Shape::rect(e.pos.x,e.pos.y,e.size.x,e.size.y).color(e.color));
+            shapes.push(Shape::rect(&self.position.x + e.pos.x,&self.position.y + e.pos.y,e.size.x,e.size.y).color(e.color));
         }
 
     }
 }
 
 fn main() {
-    pollster::block_on(run(Box::new(GameState::new())));
+    granseal_engine::start(
+        Box::new(GameState::new())
+    );
 }

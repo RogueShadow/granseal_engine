@@ -11,10 +11,10 @@ struct VertexInput {
 
 fn convert_rect(rect: vec4<f32>, screen: ScreenUniform) -> vec4<f32> {
     let rect = vec4<f32>(
-        (rect[0] / screen.width)*2.0 - 1.0,
-        (rect[1] / screen.height)*2.0 - 1.0,
-        (rect[2] / screen.width)*2.0,
-        (rect[3] / screen.height*2.0)
+        (rect[0] / screen.width) * 2.0 - 1.0,
+        (rect[1] / screen.height) * 2.0 - 1.0,
+        (rect[2] / screen.width) * 2.0,
+        (rect[3] / screen.height * 2.0)
     );
     return rect;
 }
