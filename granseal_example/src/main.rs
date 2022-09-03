@@ -99,15 +99,16 @@ impl GransealGameState for GameState {
             } else {false}
         };
 
-        let speed = 50000.0 * delta.as_secs_f32() * 1000.0;
+        let speed = 50000.0 * delta.as_secs_f32();
+        println!("{:?}",delta);
         if key(W) {self.position.y -= speed}
         if key(A) {self.position.x -= speed}
         if key(S) {self.position.y += speed}
         if key(D) {self.position.x += speed}
 
         for mut e in &mut self.entities {
-            e.pos.x += e.velocity.x * delta.as_secs_f32() * 1000.0;
-            e.pos.y += e.velocity.y * delta.as_secs_f32() * 1000.0;
+            e.pos.x += e.velocity.x * delta.as_secs_f32();
+            e.pos.y += e.velocity.y * delta.as_secs_f32();
             if e.pos.x <= 0.0 {e.velocity.x *= -1.0}
             if e.pos.y <= 0.0 {e.velocity.y *= -1.0}
             if e.pos.x >= self.config.width as f32 - e.size.x {e.velocity.x *= -1.0}

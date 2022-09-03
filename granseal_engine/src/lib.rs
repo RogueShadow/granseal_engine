@@ -241,8 +241,6 @@ impl StateShapeRender {
                 return true;
             }
         }
-
-
         return false;
     }
 
@@ -386,10 +384,10 @@ pub async fn run(mut game_state: Box<dyn GransealGameState>) {
     let mut state = StateShapeRender::new(&window, game_state).await;
     let mut frames = 0;
     let mut timer = std::time::Instant::now();
-
+    let mut delta = std::time::Instant::now();
 
     event_loop.run(move |event, _, control_flow| {
-        let mut delta = std::time::Instant::now();
+
         match event {
             Event::WindowEvent {
                 ref event,
@@ -416,10 +414,8 @@ pub async fn run(mut game_state: Box<dyn GransealGameState>) {
                 }
             }
             Event::RedrawRequested(window_id) if window_id == window.id() => {
-                let current_time = std::time::Instant::now();
-                let delta_time = current_time.duration_since(delta);
-                delta = current_time;
-                state.update(delta_time);
+                state.update(delta.elapsed());
+                delta = std::time::Instant::now();
                 match state.render() {
                     Ok(_) => {
                         frames += 1;
