@@ -15,7 +15,6 @@ pollster = "0.2.5"
 bytemuck = {version = "1.9.1", features = ["derive","extern_crate_alloc"]}
 anyhow = "1.0.58"
 cgmath = "0.18.0"
-rand = "0.8.5"
 
 [dependencies.image]
 version = "0.24.2"

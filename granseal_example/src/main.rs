@@ -1,7 +1,8 @@
 use std::collections::HashMap;
 use std::ops::{Deref, Index};
 use std::time::Duration;
-use rand::Rng;
+use rand_xorshift::XorShiftRng;
+use rand::prelude::*;
 use granseal_engine::{GransealGameConfig, run};
 use granseal_engine::events::{Event, Key};
 use granseal_engine::GransealGameState;
@@ -30,7 +31,7 @@ pub struct Entity {
 
 impl Entity {
     fn random(w: f32, h: f32) -> Self {
-        let mut r = rand::thread_rng();
+        let mut r = XorShiftRng::from_rng(rand::thread_rng()).unwrap();
         let speed = 100.0;
         Self {
             pos: Vector2d::new(r.gen::<f32>() * w,r.gen::<f32>() * h),
@@ -51,13 +52,13 @@ pub struct GameState {
 impl GameState {
     fn new() -> Self {
         let mut entities = vec![];
+        let mut r = XorShiftRng::from_rng(rand::thread_rng()).unwrap();
 
-        let mut r = rand::thread_rng();
-        for i in 0..1000{
+        for i in 0..50 {
             entities.push(Entity::random(r.gen::<f32>() * 800.0,r.gen::<f32>() * 600.0));
         }
 
-        // let step = 32;
+        // let step = 2;
         // let speed = 100.0;
         // for x in (0..800).step_by(step) {
         //     for y in (0..600).step_by(step) {
@@ -124,12 +125,13 @@ impl GransealGameState for GameState {
         let width = self.config.width as f32;
         let height = self.config.height as f32;
 
-        shapes.clear();
+        //shapes.clear();
+        println!("Shapes: {:?}",shapes.len());
 
-        let mut r = rand::thread_rng();
+        let mut r = XorShiftRng::from_rng(thread_rng()).unwrap();
         for e in &mut self.entities {
-            //e.color = Color::rgb(r.gen(),r.gen(),r.gen());
-            shapes.push(Shape::rect(&self.position.x + e.pos.x, &self.position.y + e.pos.y, e.size.x, e.size.y).color(e.color));
+            e.color = Color::rgb(r.gen(),r.gen(),r.gen());
+            shapes.push(Shape::fill_rect(&self.position.x + e.pos.x, &self.position.y + e.pos.y, e.size.x, e.size.y).color(e.color).kind(r.gen_range(0..4)));
         }
 
     }

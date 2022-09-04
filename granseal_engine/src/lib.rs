@@ -3,7 +3,6 @@ use std::io::Cursor;
 use std::time::Duration;
 
 use image::GenericImageView;
-use rand::prelude::*;
 #[cfg(target_arch="wasm32")]
 use wasm_bindgen::prelude::*;
 use wgpu;

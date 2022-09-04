@@ -8,5 +8,6 @@ edition = "2021"
 
 [dependencies]
 granseal_engine = {path = "../granseal_engine"}
+rand_xorshift = "0.3.0"
 rand = "0.8.5"
 
