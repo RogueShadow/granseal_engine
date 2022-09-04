@@ -20,7 +20,10 @@ fn convert_rect(rect: vec4<f32>, screen: ScreenUniform) -> vec4<f32> {
 }
 
 fn check_oval(h: f32, k: f32, x: f32, y: f32, a:  f32, b: f32) -> bool {
-    return ((pow(x-h,2.0) / pow(a,2.0)) + (pow(y-k,2.0) / pow(b,2.0))) > 1.0;
+    return ((pow(x-h,2.0) / pow(a,2.0)) + (pow(y-k,2.0) / pow(b,2.0))) >= 1.0;
+}
+fn check_oval2(h: f32, k: f32, x: f32, y: f32, a:  f32, b: f32) -> f32 {
+    return ((pow(x-h,2.0) / pow(a,2.0)) + (pow(y-k,2.0) / pow(b,2.0)));
 }
 
 @group(0) @binding(0)
@@ -78,6 +81,35 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
             in.rect[3] / 2.0,
         );
         if (check) {
+            return vec4<f32>(in.color[0],in.color[1],in.color[3],0.0);
+        }
+    }
+    if (in.kind == 2) {
+        let thickness = 4.0;
+
+        let centerx = in.rect[0] + in.rect[2]/2.0;
+        let centery = in.rect[1] + in.rect[3]/2.0;
+
+        let dx = abs(in.clip_position[0] - centerx) + thickness;
+        let dy = abs(in.clip_position[1] - centery) + thickness;
+
+        if (dx > in.rect[2]/2.0  || dy > in.rect[3]/2.0 ) {} else {
+            return vec4<f32>(in.color[0],in.color[1],in.color[3],0.0);
+        }
+
+    }
+    if (in.kind == 3) {
+        let thickness = 4.0 / 10.0;
+
+        let check = check_oval2(
+            in.rect[0] + in.rect[2]/2.0,
+            in.rect[1] + in.rect[3]/2.0,
+            in.clip_position[0],
+            in.clip_position[1],
+            in.rect[2] / 2.0,
+            in.rect[3] / 2.0,
+        );
+        if (check >= 1.0 || check <= 1.0 - thickness) {
             return vec4<f32>(in.color[0],in.color[1],in.color[3],0.0);
         }
     }

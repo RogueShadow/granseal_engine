@@ -53,19 +53,24 @@ impl GameState {
         let mut entities = vec![];
 
         let mut r = rand::thread_rng();
-        let step = 8;
-        let speed = 100.0;
-        for x in (0..800).step_by(step) {
-            for y in (0..600).step_by(step) {
-                entities.push(Entity {
-                    pos: Vector2d::new(x as f32,y as f32),
-                    velocity: Vector2d::new(r.gen_range(-speed..speed),r.gen_range(-speed..speed)),
-                    //velocity: Vector2d::new(0.0,0.0),
-                    size: Vector2d::new(step as f32, step as f32),
-                    color: Color::rgb(r.gen(),r.gen(),r.gen()),
-                })
-            }
+        for i in 0..1000{
+            entities.push(Entity::random(r.gen::<f32>() * 800.0,r.gen::<f32>() * 600.0));
         }
+
+        // let step = 32;
+        // let speed = 100.0;
+        // for x in (0..800).step_by(step) {
+        //     for y in (0..600).step_by(step) {
+        //         entities.push(Entity {
+        //             pos: Vector2d::new(x as f32,y as f32),
+        //             velocity: Vector2d::new(r.gen_range(-speed..speed),r.gen_range(-speed..speed)),
+        //             //velocity: Vector2d::new(0.0,0.0),
+        //             size: Vector2d::new(step as f32, step as f32),
+        //             color: Color::rgb(r.gen(),r.gen(),r.gen()),
+        //         })
+        //     }
+        // }
+        println!("Entities: {:?}",entities.len());
         Self {
             config: GransealGameConfig {
                 title: "Granseal WGPU Experimental Shapes",
@@ -87,7 +92,6 @@ impl GransealGameState for GameState {
         &self.config
     }
     fn event(&mut self, event: &Event) -> bool {
-        println!("{:?}",event);
         false
     }
 
@@ -99,8 +103,7 @@ impl GransealGameState for GameState {
             } else {false}
         };
 
-        let speed = 50000.0 * delta.as_secs_f32();
-        println!("{:?}",delta);
+        let speed = 50.0 * delta.as_secs_f32();
         if key(W) {self.position.y -= speed}
         if key(A) {self.position.x -= speed}
         if key(S) {self.position.y += speed}
@@ -125,8 +128,8 @@ impl GransealGameState for GameState {
 
         let mut r = rand::thread_rng();
         for e in &mut self.entities {
-            e.color = Color::rgb(r.gen(),r.gen(),r.gen());
-            shapes.push(Shape::rect(&self.position.x + e.pos.x,&self.position.y + e.pos.y,e.size.x,e.size.y).color(e.color));
+            //e.color = Color::rgb(r.gen(),r.gen(),r.gen());
+            shapes.push(Shape::rect(&self.position.x + e.pos.x, &self.position.y + e.pos.y, e.size.x, e.size.y).color(e.color));
         }
 
     }

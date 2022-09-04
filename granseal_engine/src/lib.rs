@@ -1,5 +1,3 @@
-extern crate core;
-
 use std::collections::HashMap;
 use std::io::Cursor;
 use std::time::Duration;
