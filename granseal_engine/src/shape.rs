@@ -170,41 +170,41 @@ impl Graphics {
         self.fill_color = color;
         self
     }
-    fn outline_color(&mut self, color: Color) -> &Self {
+    pub fn outline_color(&mut self, color: Color) -> &Self {
         self.outline_color = color;
         self
     }
-    fn outline_thickness(&mut self, thickness: f32) -> &Self {
+    pub fn outline_thickness(&mut self, thickness: f32) -> &Self {
         self.outline_thickness = thickness;
         self
     }
-    fn outline(&mut self, value: bool) -> &Self {
+    pub fn outline(&mut self, value: bool) -> &Self {
         self.outline = value;
         self
     }
-    fn set_rotation(&mut self, angle: f32) -> &Self {
+    pub fn set_rotation(&mut self, angle: f32) -> &Self {
         self.position[2] = angle;
         self
     }
-    fn rotate(&mut self, amount: f32) -> &Self {
+    pub fn rotate(&mut self, amount: f32) -> &Self {
         self.position[2] += amount;
         self
     }
-    fn set_translation(&mut self, x: f32, y: f32) -> &Self {
+    pub fn set_translation(&mut self, x: f32, y: f32) -> &Self {
         self.position[0] = x;
         self.position[1] = y;
         self
     }
-    fn translate(&mut self, x: f32,  y: f32) -> &Self {
+    pub fn translate(&mut self, x: f32,  y: f32) -> &Self {
         self.position[0] += x;
         self.position[1] += y;
         self
     }
-    fn push_position(&mut self) -> &Self {
+    pub fn push_position(&mut self) -> &Self {
         self.positions.push(self.position);
         self
     }
-    fn pop_position(&mut self) -> &Self {
+    pub fn pop_position(&mut self) -> &Self {
         if !self.positions.is_empty() {
             self.position = self.positions.pop().unwrap();
         }
@@ -214,7 +214,17 @@ impl Graphics {
         return (self.position[0] + x,self.position[1] + y, self.position[2] + a);
     }
 
-    fn rect(&mut self, x: f32, y: f32, width: f32, height: f32) -> &Self {
+    pub fn shape(&mut self, k: ShapeKind, x: f32, y: f32, width: f32, height: f32) -> &Self {
+        let (x,y,a) = self.apply_position(x,y,0.0);
+        self.shapes.push(
+            Shape::rect(x,y,width,height)
+                .color(self.fill_color)
+                .angle(a)
+                .kind(k)
+        );
+        self
+    }
+    pub fn rect(&mut self, x: f32, y: f32, width: f32, height: f32) -> &Self {
         let (x,y,a) = self.apply_position(x,y,0.0);
         self.shapes.push(
           Shape::rect(x,y,width,height)
@@ -223,7 +233,7 @@ impl Graphics {
         );
         self
     }
-    fn oval(&mut self, x: f32, y: f32, width: f32, height: f32) -> &Self {
+    pub fn oval(&mut self, x: f32, y: f32, width: f32, height: f32) -> &Self {
         let (x,y,a) = self.apply_position(x,y,0.0);
         self.shapes.push(
             Shape::oval(x,y,width,height)
@@ -250,7 +260,7 @@ impl Graphics {
         }
         self
     }
-    fn fill_oval(&mut self, x: f32, y: f32, width: f32, height: f32) -> &Self {
+    pub fn fill_oval(&mut self, x: f32, y: f32, width: f32, height: f32) -> &Self {
         let (x,y,a) = self.apply_position(x,y,0.0);
 
         self.shapes.push(

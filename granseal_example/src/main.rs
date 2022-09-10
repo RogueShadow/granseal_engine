@@ -139,7 +139,8 @@ impl GransealGameState for GameState {
         for e in &mut self.entities {
             e.color = Color::rgb(r.gen(),r.gen(),r.gen());
             g.color(e.color);
-            g.fill_rect(
+            g.shape(
+                r.gen_range(0..=5),
                 &self.position.x + e.pos.x,
                 &self.position.y + e.pos.y,
                 e.size.x,
