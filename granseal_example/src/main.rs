@@ -115,7 +115,7 @@ impl GransealGameState for GameState {
             } else {false}
         };
 
-        let speed = 50.0 * delta.as_secs_f32();
+        let speed = 250.0 * delta.as_secs_f32();
         if key(W) {self.position.y -= speed}
         if key(A) {self.position.x -= speed}
         if key(S) {self.position.y += speed}
@@ -134,15 +134,15 @@ impl GransealGameState for GameState {
 
     fn render(&mut self, g: &mut Graphics) {
         g.clear();
-
+        g.set_translation(self.position.x,self.position.y);
         let r = &mut self.rng;
         for e in &mut self.entities {
             e.color = Color::rgb(r.gen(),r.gen(),r.gen());
             g.color(e.color);
             g.shape(
                 r.gen_range(0..=5),
-                &self.position.x + e.pos.x,
-                &self.position.y + e.pos.y,
+                e.pos.x,
+                e.pos.y,
                 e.size.x,
                 e.size.y
             );
@@ -152,8 +152,5 @@ impl GransealGameState for GameState {
 }
 
 fn main() {
-    granseal_engine::start(
-        Box::new(GameState::new())
-    );
-
+    granseal_engine::start(GameState::new());
 }
