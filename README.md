@@ -1,4 +1,5 @@
 <h1>Granseal Engine</h1>
+<img src="cover.png"</img>
 <p>An prototype 2d game engine written in Rust and Wgsl for my learning and amusement.</p>
 <p><b>Status:</b> Pile of random code. Prototype maybe? Experiment.</p>
 <p><b>Version:</b> What's a version...</p>
