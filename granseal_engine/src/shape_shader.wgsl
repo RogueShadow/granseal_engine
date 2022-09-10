@@ -6,7 +6,8 @@ struct ScreenUniform {
 struct VertexInput {
     @location(0) rect: vec4<f32>,
     @location(1) color: vec4<f32>,
-    @location(2) kind: i32,
+    @location(2) angle: f32,
+    @location(3) kind: i32,
 }
 
 fn convert_rect(rect: vec4<f32>, screen: ScreenUniform) -> vec4<f32> {
@@ -29,11 +30,18 @@ fn check_oval2(h: f32, k: f32, x: f32, y: f32, a:  f32, b: f32) -> f32 {
 @group(0) @binding(0)
 var<uniform> screen: ScreenUniform;
 
+@group(1) @binding(0)
+var t: texture_2d<f32>;
+@group(1) @binding(1)
+var s: sampler;
+
+
 struct VertexOutput {
     @builtin(position) clip_position: vec4<f32>,
     @location(0) @interpolate(perspective,center) color: vec4<f32>,
     @location(1) rect: vec4<f32>,
     @location(2) kind: i32,
+    @location(3) @interpolate(linear,center) tex_coords: vec2<f32>,
 };
 
 @vertex
@@ -46,18 +54,22 @@ fn vs_main(@builtin(vertex_index) index: u32, in: VertexInput) -> VertexOutput {
         case 0u, 4u: {      // bottom left
             x = box[0];
             y = box[1];
+            out.tex_coords = vec2(0.0,0.0);
         }
         case 1u: {       //  top left
             x = box[0];
             y = box[1] + box[3];
+            out.tex_coords = vec2(0.0,1.0);
         }
         case 2u: {      // top right
             x = box[0] + box[2];
             y = box[1] + box[3];
+            out.tex_coords = vec2(1.0,1.0);
         }
         case 3u: {    // bottom right
             x = box[0] + box[2];
             y = box[1];
+            out.tex_coords = vec2(1.0,0.0);
         }
         default: {}
     }
@@ -69,8 +81,16 @@ fn vs_main(@builtin(vertex_index) index: u32, in: VertexInput) -> VertexOutput {
     return out;
 }
 
+
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
+
+    var diffuse_color = textureSample(t,s,in.tex_coords);
+    var color_out = in.color;
+
+    if (in.kind == 0) {
+
+    }
     if (in.kind == 1) {
         let check = check_oval(
             in.rect[0] + in.rect[2]/2.0,
@@ -81,7 +101,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
             in.rect[3] / 2.0,
         );
         if (check) {
-            return vec4<f32>(in.color[0],in.color[1],in.color[3],0.0);
+            color_out.a = 0.0;
         }
     }
     if (in.kind == 2) {
@@ -94,7 +114,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         let dy = abs(in.clip_position[1] - centery) + thickness;
 
         if (dx > in.rect[2]/2.0  || dy > in.rect[3]/2.0 ) {} else {
-            return vec4<f32>(in.color[0],in.color[1],in.color[3],0.0);
+            color_out.a = 0.0;
         }
 
     }
@@ -110,8 +130,26 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
             in.rect[3] / 2.0,
         );
         if (check >= 1.0 || check <= 1.0 - thickness) {
-            return vec4<f32>(in.color[0],in.color[1],in.color[3],0.0);
+            color_out.a = 0.0;
         }
     }
-    return in.color;
+    if (in.kind == 4) {
+        color_out = diffuse_color * color_out;
+    }
+    if (in.kind == 5) {
+        let check = check_oval(
+            in.rect[0] + in.rect[2]/2.0,
+            in.rect[1] + in.rect[3]/2.0,
+            in.clip_position[0],
+            in.clip_position[1],
+            in.rect[2] / 2.0,
+            in.rect[3] / 2.0,
+        );
+        color_out = diffuse_color * color_out;
+        if (check) {
+            color_out.a = 0.0;
+        }
+    }
+
+    return color_out;
 }

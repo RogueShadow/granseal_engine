@@ -1,4 +1,4 @@
-use wgpu::util::DeviceExt;
+use crate::Texture;
 
 #[derive(Copy,Clone,Debug)]
 pub struct Color {
@@ -45,6 +45,10 @@ pub const OVAL: ShapeKind = 3;
 pub const TEX_RECT: ShapeKind = 4;//TODO implement textured rect.
 pub const TEX_OVAL: ShapeKind = 5;//TODO implement textured oval.
 
+pub struct ShapeOptions {
+    texture: Texture,
+}
+
 #[repr(C)]
 #[derive(Copy,Clone,Debug,bytemuck::Pod,bytemuck::Zeroable)]
 pub struct Shape {
@@ -56,36 +60,25 @@ pub struct Shape {
     pub green: f32,
     pub blue: f32,
     pub alpha: f32,
+    pub angle: f32,
     pub kind: ShapeKind,
 }
 
 impl Shape {
-    pub fn new(x: f32, y: f32, w: f32, h: f32,r: f32, g: f32, b: f32,a: f32, k: ShapeKind) -> Self {
-        Self { x, y, width: w, height: h, red: r, green: g, blue: b, alpha: a, kind: k }
-    }
-    pub fn fill_square(x: f32, y: f32, s: f32) -> Self {
-        Self::new(x, y, s, s, 1.0, 1.0, 1.0, 1.0, FILL_RECT)
+    pub fn new(x: f32, y: f32, width: f32, height: f32, red: f32, green: f32, blue: f32, alpha: f32, angle: f32, kind: ShapeKind) -> Self {
+        Self { x, y, width, height, red, green, blue, alpha, angle, kind }
     }
     pub fn fill_rect(x: f32, y: f32, w: f32, h: f32) -> Self {
-        Self::new(x, y, w, h, 1.0, 1.0, 1.0, 1.0, FILL_RECT)
-    }
-    pub fn fill_circle(x: f32, y: f32, r: f32) -> Self {
-        Self::new(x, y, r, r, 1.0, 1.0, 1.0, 1.0, FILL_OVAL)
+        Self::new(x, y, w, h, 1.0, 1.0, 1.0, 1.0, 0.0,FILL_RECT)
     }
     pub fn fill_oval(x: f32, y: f32, w: f32, h: f32) -> Self {
-        Self::new(x, y, w, h, 1.0, 1.0, 1.0, 1.0, FILL_OVAL)
-    }
-    pub fn square(x: f32, y: f32, s: f32) -> Self {
-        Self::new(x, y, s, s, 1.0, 1.0, 1.0, 1.0, RECT)
+        Self::new(x, y, w, h, 1.0, 1.0, 1.0, 1.0,0.0,  FILL_OVAL)
     }
     pub fn rect(x: f32, y: f32, w: f32, h: f32) -> Self {
-        Self::new(x, y, w, h, 1.0, 1.0, 1.0, 1.0, RECT)
-    }
-    pub fn circle(x: f32, y: f32, r: f32) -> Self {
-        Self::new(x, y, r, r, 1.0, 1.0, 1.0, 1.0, OVAL)
+        Self::new(x, y, w, h, 1.0, 1.0, 1.0, 1.0, 0.0, RECT)
     }
     pub fn oval(x: f32, y: f32, w: f32, h: f32) -> Self {
-        Self::new(x, y, w, h, 1.0, 1.0, 1.0, 1.0, OVAL)
+        Self::new(x, y, w, h, 1.0, 1.0, 1.0, 1.0, 0.0,OVAL)
     }
     pub fn rgb(mut self, r: f32, g: f32, b: f32) -> Self {
         self.red = r;
@@ -107,6 +100,10 @@ impl Shape {
         self.kind = k;
         self
     }
+    pub fn angle(mut self, a: f32) -> Self {
+        self.angle = a;
+        self
+    }
     pub fn desc<'a>() -> wgpu::VertexBufferLayout<'a> {
         wgpu::VertexBufferLayout {
             array_stride: std::mem::size_of::<Shape>() as wgpu::BufferAddress,
@@ -125,6 +122,11 @@ impl Shape {
                 wgpu::VertexAttribute {
                     offset: std::mem::size_of::<[f32; 8]>() as wgpu::BufferAddress,
                     shader_location: 2,
+                    format: wgpu::VertexFormat::Float32,
+                },
+                wgpu::VertexAttribute {
+                    offset: std::mem::size_of::<[f32; 9]>() as wgpu::BufferAddress,
+                    shader_location: 3,
                     format: wgpu::VertexFormat::Sint32,
                 },
             ]
@@ -133,28 +135,137 @@ impl Shape {
 }
 
 //TODO builder, for purposes of having state in the building process.
-pub struct ShapeBuilder {
+#[allow(dead_code)]
+#[derive(Clone, Debug)]
+pub struct Graphics {
     pub fill_color: Color,
     pub outline_color: Color,
+    pub outline: bool,
     pub outline_thickness: f32,
-    pub kind: ShapeKind,
+    pub shapes: Vec<Shape>,
+    pub position: [f32; 4],
+    // x, y, angle, layer(someday)
+    positions: Vec<[f32; 4]>,
 }
 
-impl ShapeBuilder {
-    fn fill_color(mut self, color: Color) -> Self {
+
+#[allow(dead_code)]
+impl Graphics {
+    pub fn new() -> Self {
+        Self {
+            fill_color: WHITE,
+            outline_color: BLACK,
+            outline: false,
+            outline_thickness: 1.0,
+            shapes: vec![],
+            position: [0.0,0.0,0.0,0.0],
+            positions: vec![]
+        }
+    }
+    pub fn clear(&mut self) -> &Self {
+        self.shapes.clear();
+        self
+    }
+    pub fn color(&mut self, color: Color) -> &Self {
         self.fill_color = color;
         self
     }
-    fn outline_color(mut self, color: Color) -> Self {
+    fn outline_color(&mut self, color: Color) -> &Self {
         self.outline_color = color;
         self
     }
-    fn outline_thickness(mut self, thickness: f32) -> Self {
+    fn outline_thickness(&mut self, thickness: f32) -> &Self {
         self.outline_thickness = thickness;
         self
     }
-    fn kind(mut self, kind: ShapeKind) -> Self {
-        self.kind = kind;
+    fn outline(&mut self, value: bool) -> &Self {
+        self.outline = value;
+        self
+    }
+    fn set_rotation(&mut self, angle: f32) -> &Self {
+        self.position[2] = angle;
+        self
+    }
+    fn rotate(&mut self, amount: f32) -> &Self {
+        self.position[2] += amount;
+        self
+    }
+    fn set_translation(&mut self, x: f32, y: f32) -> &Self {
+        self.position[0] = x;
+        self.position[1] = y;
+        self
+    }
+    fn translate(&mut self, x: f32,  y: f32) -> &Self {
+        self.position[0] += x;
+        self.position[1] += y;
+        self
+    }
+    fn push_position(&mut self) -> &Self {
+        self.positions.push(self.position);
+        self
+    }
+    fn pop_position(&mut self) -> &Self {
+        if !self.positions.is_empty() {
+            self.position = self.positions.pop().unwrap();
+        }
+        self
+    }
+    fn apply_position(&self, x: f32, y: f32, a: f32) -> (f32,f32,f32) {
+        return (self.position[0] + x,self.position[1] + y, self.position[2] + a);
+    }
+
+    fn rect(&mut self, x: f32, y: f32, width: f32, height: f32) -> &Self {
+        let (x,y,a) = self.apply_position(x,y,0.0);
+        self.shapes.push(
+          Shape::rect(x,y,width,height)
+              .color(self.fill_color)
+              .angle(a)
+        );
+        self
+    }
+    fn oval(&mut self, x: f32, y: f32, width: f32, height: f32) -> &Self {
+        let (x,y,a) = self.apply_position(x,y,0.0);
+        self.shapes.push(
+            Shape::oval(x,y,width,height)
+                .color(self.fill_color)
+                .angle(a)
+        );
+        self
+    }
+    pub fn fill_rect(&mut self, x: f32, y: f32, width: f32, height: f32) -> &Self {
+        let (x,y,a) = self.apply_position(x,y,0.0);
+
+        self.shapes.push(
+            Shape::fill_rect(x, y, width, height)
+            .color(self.fill_color)
+            .angle(a)
+        );
+
+        if self.outline {
+            self.shapes.push(
+                Shape::rect(x,y,width,height)
+                    .color(self.outline_color)
+                    .angle(a)
+            );
+        }
+        self
+    }
+    fn fill_oval(&mut self, x: f32, y: f32, width: f32, height: f32) -> &Self {
+        let (x,y,a) = self.apply_position(x,y,0.0);
+
+        self.shapes.push(
+            Shape::fill_oval(x, y, width, height)
+                .color(self.fill_color)
+                .angle(a)
+        );
+
+        if self.outline {
+            self.shapes.push(
+                Shape::oval(x,y,width,height)
+                    .color(self.outline_color)
+                    .angle(a)
+            );
+        }
         self
     }
 }

@@ -1,10 +1,17 @@
 use image::GenericImageView;
 use anyhow::*;
 
+pub struct TextureInfo {
+    pub(crate) bind_group: wgpu::BindGroup,
+    pub(crate) path: String,
+    pub(crate) alias: Option<String>,
+    pub(crate) width: u32,
+    pub(crate) height: u32,
+}
+
 pub struct Texture {
     pub texture: wgpu::Texture,
-    pub view: wgpu::TextureView,
-    pub sampler: wgpu::Sampler,
+    pub bind_group: wgpu::BindGroup,
 }
 
 impl Texture {
@@ -12,17 +19,19 @@ impl Texture {
         device: &wgpu::Device,
         queue: &wgpu::Queue,
         bytes: &[u8],
-        label: &str
+        label: &str,
+        bind_group_layout: &wgpu::BindGroupLayout,
     ) -> Result<Self> {
         let img = image::load_from_memory(bytes)?;
-        Self::from_image(device, queue, &img, Some(label))
+        Self::from_image(device, queue, &img, Some(label), &bind_group_layout)
     }
 
     pub fn from_image(
         device: &wgpu::Device,
         queue: &wgpu::Queue,
         img: &image::DynamicImage,
-        label: Option<&str>
+        label: Option<&str>,
+        bind_group_layout: &wgpu::BindGroupLayout,
     ) -> Result<Self> {
         let rgba = img.to_rgba8();
         let dimensions = img.dimensions();
@@ -71,7 +80,22 @@ impl Texture {
                 ..Default::default()
             }
         );
+        
+        let bind_group = device.create_bind_group( &wgpu::BindGroupDescriptor {
+            label: Some("texture_bind_group"),
+            layout: &bind_group_layout,
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: wgpu::BindingResource::TextureView(&view),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1 ,
+                    resource: wgpu::BindingResource::Sampler(&sampler),
+                }
+            ]
+        });
 
-        Ok(Self {texture, view, sampler})
+        Ok(Self {texture, bind_group})
     }
 }

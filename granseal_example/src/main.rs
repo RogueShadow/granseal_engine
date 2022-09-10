@@ -1,12 +1,19 @@
-use std::collections::HashMap;
-use std::ops::{Deref, Index};
-use std::time::Duration;
+// No console,
+// #![windows_subsystem ="windows"]
+
+use std::{
+    collections::HashMap,
+    ops::Index,
+    time::Duration,
+};
 use rand_xorshift::XorShiftRng;
 use rand::prelude::*;
-use granseal_engine::{GransealGameConfig, run};
-use granseal_engine::events::{Event, Key};
-use granseal_engine::GransealGameState;
-use granseal_engine::shape::*;
+use granseal_engine::{
+    GransealGameConfig,
+    events::{Event,Key},
+    GransealGameState,
+    shape::*,
+};
 
 pub struct Vector2d {
     x: f32,
@@ -27,6 +34,7 @@ pub struct Entity {
     size: Vector2d,
     velocity: Vector2d,
     color: Color,
+    kind: ShapeKind,
 }
 
 impl Entity {
@@ -38,6 +46,7 @@ impl Entity {
             size: Vector2d::new(r.gen_range(16.0..64.00), r.gen_range(16.0..64.00)),
             velocity: Vector2d::new( r.gen_range(-speed..speed), r.gen_range(-speed..speed)),
             color: Color::rgb(r.gen(),r.gen(),r.gen()),
+            kind: r.gen_range(0..6),
         }
     }
 }
@@ -45,8 +54,8 @@ impl Entity {
 pub struct GameState {
     config: GransealGameConfig,
     position: Vector2d,
-    init: bool,
     entities: Vec<Entity>,
+    rng: XorShiftRng,
 }
 
 impl GameState {
@@ -54,20 +63,21 @@ impl GameState {
         let mut entities = vec![];
         let mut r = XorShiftRng::from_rng(rand::thread_rng()).unwrap();
 
-        for i in 0..50 {
+        for _i in 0..50 {
             entities.push(Entity::random(r.gen::<f32>() * 800.0,r.gen::<f32>() * 600.0));
         }
 
-        // let step = 2;
+        // let step = 8;
         // let speed = 100.0;
         // for x in (0..800).step_by(step) {
         //     for y in (0..600).step_by(step) {
         //         entities.push(Entity {
         //             pos: Vector2d::new(x as f32,y as f32),
-        //             velocity: Vector2d::new(r.gen_range(-speed..speed),r.gen_range(-speed..speed)),
-        //             //velocity: Vector2d::new(0.0,0.0),
+        //             //velocity: Vector2d::new(r.gen_range(-speed..speed),r.gen_range(-speed..speed)),
+        //             velocity: Vector2d::new(0.0,0.0),
         //             size: Vector2d::new(step as f32, step as f32),
         //             color: Color::rgb(r.gen(),r.gen(),r.gen()),
+        //             kind: RECT
         //         })
         //     }
         // }
@@ -82,17 +92,18 @@ impl GameState {
                 x: 0.0,
                 y: 0.0,
             },
-            init: false,
             entities,
+            rng: XorShiftRng::from_rng(rand::thread_rng()).unwrap(),
         }
     }
 }
+
 
 impl GransealGameState for GameState {
     fn config(&mut self) -> &GransealGameConfig {
         &self.config
     }
-    fn event(&mut self, event: &Event) -> bool {
+    fn event(&mut self, _event: &Event) -> bool {
         false
     }
 
@@ -121,17 +132,19 @@ impl GransealGameState for GameState {
 
     }
 
-    fn render(&mut self, shapes: &mut Vec<Shape>) {
-        let width = self.config.width as f32;
-        let height = self.config.height as f32;
+    fn render(&mut self, g: &mut Graphics) {
+        g.clear();
 
-        //shapes.clear();
-        println!("Shapes: {:?}",shapes.len());
-
-        let mut r = XorShiftRng::from_rng(thread_rng()).unwrap();
+        let r = &mut self.rng;
         for e in &mut self.entities {
             e.color = Color::rgb(r.gen(),r.gen(),r.gen());
-            shapes.push(Shape::fill_rect(&self.position.x + e.pos.x, &self.position.y + e.pos.y, e.size.x, e.size.y).color(e.color).kind(r.gen_range(0..4)));
+            g.color(e.color);
+            g.fill_rect(
+                &self.position.x + e.pos.x,
+                &self.position.y + e.pos.y,
+                e.size.x,
+                e.size.y
+            );
         }
 
     }
@@ -141,4 +154,5 @@ fn main() {
     granseal_engine::start(
         Box::new(GameState::new())
     );
+
 }

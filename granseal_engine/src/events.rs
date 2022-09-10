@@ -70,7 +70,7 @@ pub enum Key {
 pub fn map_events(event: &winit::event::WindowEvent) -> Option<Event> {
     match event {
         winit::event::WindowEvent::KeyboardInput {
-            input: winit::event::KeyboardInput { scancode, state, virtual_keycode, modifiers },
+            input: winit::event::KeyboardInput { scancode: _scancode, state, virtual_keycode, modifiers },
             ..
         } => {
             if virtual_keycode.is_none() {return None;}
@@ -83,7 +83,7 @@ pub fn map_events(event: &winit::event::WindowEvent) -> Option<Event> {
                 modifiers: map_modifiers(modifiers)
             })
         },
-        winit::event::WindowEvent::MouseInput { device_id, state, button, modifiers } => {
+        winit::event::WindowEvent::MouseInput { device_id: _device_id, state, button, modifiers } => {
             Some(Event::MouseButton {
                 state: match state {
                     winit::event::ElementState::Pressed => {KeyState::Pressed}

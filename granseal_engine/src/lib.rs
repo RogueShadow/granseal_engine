@@ -1,24 +1,32 @@
-use std::collections::HashMap;
-use std::io::Cursor;
-use std::time::Duration;
+use std::{
+    collections::HashMap,
+    time::Duration,
+};
+use std::path::Path;
+use cgmath::num_traits::ToPrimitive;
 
-use image::GenericImageView;
 #[cfg(target_arch="wasm32")]
 use wasm_bindgen::prelude::*;
-use wgpu;
-use wgpu::util::DeviceExt;
+
+use wgpu::{
+    util::DeviceExt,
+};
+
 use winit::{
     event::*,
-    event_loop::{ControlFlow, EventLoop},
-    window::WindowBuilder,
+    event_loop::{
+        ControlFlow,
+        EventLoop
+    },
+    window::{
+        WindowBuilder,
+        Window
+    },
 };
-use winit::dpi::{PhysicalSize, Size};
-use winit::event::WindowEvent;
-use winit::event::WindowEvent::MouseInput;
-use winit::window::Window;
 
-use crate::events::{Key, KeyState, map_events, ModifierState};
+use crate::events::{KeyState, map_events};
 use crate::shape::*;
+use crate::texture::{Texture, TextureInfo};
 
 mod texture;
 pub mod shape;
@@ -29,13 +37,12 @@ struct ShapePipeline {
     screen_uniform: ScreenUniform,
     screen_buffer: wgpu::Buffer,
     screen_bind_group: wgpu::BindGroup,
-    shapes: Vec<Shape>,
-    shape_buffer: wgpu::Buffer,
     clear_color: [f64; 4],
+    texture_bind_group_layout: wgpu::BindGroupLayout,
 }
 
 impl ShapePipeline {
-    fn new(config: &wgpu::SurfaceConfiguration, device: &wgpu::Device) -> Self {
+    fn new(config: &wgpu::SurfaceConfiguration, device: &wgpu::Device, queue: &wgpu::Queue) -> Self {
         let clear_color = [0.1,0.2,0.3,1.0];
         let screen_uniform = ScreenUniform::new(config.width as f32,config.height as f32);
         let screen_buffer = device.create_buffer_init(
@@ -70,25 +77,38 @@ impl ShapePipeline {
             ],
             label: Some("screen_bind_group"),
         });
-        let mut shapes = vec![];
 
-        let shape_buffer = device.create_buffer_init(
-            &wgpu::util::BufferInitDescriptor {
-                label: Some("Shape Buffer"),
-                contents: bytemuck::cast_slice(shapes.as_slice()),
-                usage: wgpu::BufferUsages::VERTEX
-            }
-        );
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("Shader"),
             source: wgpu::ShaderSource::Wgsl(include_str!("shape_shader.wgsl").into()),
         });
 
+        let texture_bind_group_layout = device.create_bind_group_layout( &wgpu::BindGroupLayoutDescriptor {
+            label: Some("texture_bind_group_layout"),
+            entries: &[
+            wgpu::BindGroupLayoutEntry {
+                binding: 0,
+                visibility: wgpu::ShaderStages::FRAGMENT,
+                ty: wgpu::BindingType::Texture {
+                    sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                    view_dimension: wgpu::TextureViewDimension::D2,
+                    multisampled: false
+                },
+                count: None
+            },
+            wgpu::BindGroupLayoutEntry {
+                binding: 1,
+                visibility: wgpu::ShaderStages::FRAGMENT,
+                ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                count: None
+            }
+            ]
+        });
 
         let render_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Shape Render Pipeline Layout"),
-                bind_group_layouts: &[&screen_bind_group_layout],
+                bind_group_layouts: &[&screen_bind_group_layout,&texture_bind_group_layout],
                 push_constant_ranges: &[],
             });
         let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
@@ -131,13 +151,13 @@ impl ShapePipeline {
             screen_uniform,
             screen_buffer,
             screen_bind_group,
-            shapes,
-            shape_buffer,
             clear_color,
+            texture_bind_group_layout,
         }
     }
 }
 
+#[allow(unused)]
 struct StateShapeRender {
     surface: wgpu::Surface,
     device: wgpu::Device,
@@ -148,6 +168,9 @@ struct StateShapeRender {
     mouse_pos: [f64; 2],
     key_down: HashMap<events::Key,bool>,
     game_state: Box<dyn GransealGameState>,
+    textures: HashMap<String,TextureInfo>,
+    graphics: Graphics,
+    shape_buffer: wgpu::Buffer,
 }
 
 impl StateShapeRender {
@@ -188,9 +211,19 @@ impl StateShapeRender {
 
         let mouse_pos = [0.0,0.0];
 
-        let pipeline = ShapePipeline::new(&config,&device);
+        let pipeline = ShapePipeline::new(&config,&device,&queue);
 
         let key_down = HashMap::new();
+
+        let graphics = Graphics::new();
+
+        let shape_buffer = device.create_buffer_init(
+            &wgpu::util::BufferInitDescriptor {
+                label: Some("Shape Buffer"),
+                contents: bytemuck::cast_slice(graphics.shapes.as_slice()),
+                usage: wgpu::BufferUsages::VERTEX
+            }
+        );
 
         StateShapeRender {
             surface,
@@ -202,7 +235,35 @@ impl StateShapeRender {
             mouse_pos,
             key_down,
             game_state,
+            textures: HashMap::new(),
+            graphics,
+            shape_buffer,
         }
+    }
+
+    fn load<P>(&mut self, image: P) where P: AsRef<Path> {
+        let path = image.as_ref().clone().to_str().unwrap();
+        if self.textures.contains_key(path) {
+            return;
+        }
+
+        let img = &image::open(&image).unwrap();
+        let texture = Texture::from_image(
+            &self.device,
+            &self.queue,
+            img,
+            Some(path),
+            &self.pipeline.texture_bind_group_layout,
+        ).unwrap();
+        let texture_info = TextureInfo {
+            bind_group: texture.bind_group,
+            path: path.to_string(),
+            alias: Some(path.to_string()),
+            width: img.width(),
+            height: img.height(),
+        };
+
+        self.textures.insert(path.to_string(),texture_info);
     }
 
     fn resize(&mut self, new_size: winit::dpi::PhysicalSize<u32>) {
@@ -221,7 +282,7 @@ impl StateShapeRender {
         if granseal_event.is_some() {
             match granseal_event.unwrap() {
                 events::Event::KeyEvent {
-                    state, key, modifiers
+                    state, key, modifiers: _modifiers
                 } => {
                     match state {
                         KeyState::Pressed => {
@@ -241,21 +302,21 @@ impl StateShapeRender {
         return false;
     }
 
-    fn update(&mut self, deltaTime: Duration) {
-        self.game_state.update(deltaTime, &self.key_down);
+    fn update(&mut self, delta_time: Duration) {
+        self.game_state.update(delta_time, &self.key_down);
     }
 
     fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
-        self.game_state.render(&mut self.pipeline.shapes);
+        self.game_state.render(&mut self.graphics);
         let shape_buffer = self.device.create_buffer_init(
             &wgpu::util::BufferInitDescriptor {
                 label: Some("Shape Buffer"),
-                contents: bytemuck::cast_slice(self.pipeline.shapes.as_slice()),
+                contents: bytemuck::cast_slice(self.graphics.shapes.as_slice()),
                 usage: wgpu::BufferUsages::VERTEX
             }
         );
-        self.pipeline.shape_buffer.destroy();
-        self.pipeline.shape_buffer = shape_buffer;
+        self.shape_buffer.destroy();
+        self.shape_buffer = shape_buffer;
 
         let output = self.surface.get_current_texture()?;
         let view = output.texture.create_view(&wgpu::TextureViewDescriptor::default());
@@ -282,10 +343,12 @@ impl StateShapeRender {
                 depth_stencil_attachment: None
             });
 
+            self.load("happy-tree.png");
             render_pass.set_pipeline(&self.pipeline.render_pipeline);
-            render_pass.set_vertex_buffer(0,self.pipeline.shape_buffer.slice(..));
             render_pass.set_bind_group(0,&self.pipeline.screen_bind_group,&[]);
-            render_pass.draw(0..5 as u32, 0..self.pipeline.shapes.len() as u32);
+            render_pass.set_bind_group(1, &self.textures.get("happy-tree.png").unwrap().bind_group, &[]);
+            render_pass.set_vertex_buffer(0,self.shape_buffer.slice(..));
+            render_pass.draw(0..5 as u32, 0..self.graphics.shapes.len() as u32);
         }
 
         self.queue.submit(std::iter::once(encoder.finish()));
@@ -327,7 +390,7 @@ pub trait GransealGameState {
     fn config(&mut self) -> &GransealGameConfig;
     fn event(&mut self, event: &events::Event) -> bool;
     fn update(&mut self,delta: Duration, key_down: &HashMap<events::Key,bool>);
-    fn render(&mut self, shapes: &mut Vec<Shape>);
+    fn render(&mut self, graphics: &mut Graphics);
 }
 
 pub fn start(state: Box<dyn GransealGameState>) {
@@ -352,7 +415,7 @@ pub async fn run(mut game_state: Box<dyn GransealGameState>) {
     let event_loop = EventLoop::new();
     let window = WindowBuilder::new()
         .with_title(config.title)
-        .with_inner_size(PhysicalSize {
+        .with_inner_size(winit::dpi::PhysicalSize {
             width: config.width,
             height: config.height,
         })

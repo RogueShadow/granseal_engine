@@ -1,4 +1,4 @@
-#![windows_subsystem ="windows"]
+
 [package]
 name = "granseal_example"
 version = "0.1.0"
