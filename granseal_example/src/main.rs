@@ -8,12 +8,7 @@ use std::{
 };
 use rand_xorshift::XorShiftRng;
 use rand::prelude::*;
-use granseal_engine::{
-    GransealGameConfig,
-    events::{Event,Key},
-    GransealGameState,
-    shape::*,
-};
+use granseal_engine::{GransealGameConfig, events::{Event, Key}, GransealGameState, shape::*, VSyncMode};
 
 pub struct Vector2d {
     x: f32,
@@ -83,11 +78,9 @@ impl GameState {
         // }
         println!("Entities: {:?}",entities.len());
         Self {
-            config: GransealGameConfig {
-                title: "Granseal WGPU Experimental Shapes",
-                width: 800,
-                height: 600,
-            },
+            config: GransealGameConfig::new()
+                .title("Shapes Go Fly WOooo")
+                .vsync(VSyncMode::VSyncOff),
             position: Vector2d {
                 x: 0.0,
                 y: 0.0,
@@ -100,8 +93,8 @@ impl GameState {
 
 
 impl GransealGameState for GameState {
-    fn config(&mut self) -> &GransealGameConfig {
-        &self.config
+    fn config(&mut self) -> &mut GransealGameConfig {
+        &mut self.config
     }
     fn event(&mut self, _event: &Event) -> bool {
         false

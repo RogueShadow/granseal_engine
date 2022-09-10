@@ -174,7 +174,7 @@ struct StateShapeRender {
 }
 
 impl StateShapeRender {
-    async fn new(window: &Window, game_state: Box<dyn GransealGameState>) -> Self {
+    async fn new(window: &Window, mut game_state: Box<dyn GransealGameState>) -> Self {
         let size = window.inner_size();
 
         let instance = wgpu::Instance::new(wgpu::Backends::all());
@@ -205,7 +205,7 @@ impl StateShapeRender {
             format: surface.get_supported_formats(&adapter).pop().unwrap(),
             width: size.width,
             height: size.height,
-            present_mode: wgpu::PresentMode::Mailbox,
+            present_mode: map_present_modes(game_state.config().vsync),
         };
         surface.configure(&device, &config);
 
@@ -379,15 +379,56 @@ impl ScreenUniform {
     }
 }
 
+#[repr(C)]
+#[derive(Copy,Clone,Eq,PartialEq,Debug)]
+pub enum VSyncMode {
+    AutoVsync,
+    AutoNoVsync,
+    VSyncOn,
+    AdaptiveVSync,
+    VSyncOff,
+    FastVSync,
+}
+
+fn map_present_modes(mode: VSyncMode) -> wgpu::PresentMode {
+    match mode  {
+        VSyncMode::AutoVsync => wgpu::PresentMode::AutoVsync,
+        VSyncMode::AutoNoVsync => wgpu::PresentMode::AutoNoVsync,
+        VSyncMode::VSyncOn => wgpu::PresentMode::Fifo,
+        VSyncMode::AdaptiveVSync => wgpu::PresentMode::FifoRelaxed,
+        VSyncMode::VSyncOff => wgpu::PresentMode::Immediate,
+        VSyncMode::FastVSync => wgpu::PresentMode::Mailbox,
+    }
+}
+
 #[derive(Clone,Copy)]
 pub struct GransealGameConfig {
     pub width: i32,
     pub height: i32,
     pub title: &'static str,
+    pub vsync: VSyncMode,
+}
+impl GransealGameConfig {
+    pub fn new() -> Self {
+        Self {
+            title: "Granseal Engine",
+            width: 800,
+            height: 600,
+            vsync: VSyncMode::VSyncOn,
+        }
+    }
+    pub fn title(mut self, title: &'static str) -> Self {
+        self.title = title;
+        self
+    }
+    pub fn vsync(mut self, mode: VSyncMode) -> Self {
+        self.vsync = mode;
+        self
+    }
 }
 
 pub trait GransealGameState {
-    fn config(&mut self) -> &GransealGameConfig;
+    fn config(&mut self) -> &mut GransealGameConfig;
     fn event(&mut self, event: &events::Event) -> bool;
     fn update(&mut self,delta: Duration, key_down: &HashMap<events::Key,bool>);
     fn render(&mut self, graphics: &mut Graphics);
@@ -397,6 +438,7 @@ pub trait GransealGameState {
 pub fn start<S>(state: S) where S: GransealGameState + 'static {
     pollster::block_on(run(Box::new(state)));
 }
+
 
 #[cfg_attr(target_arch="wasm32", wasm_bindgen(start))]
 pub async fn run(mut game_state: Box<dyn GransealGameState>) {
@@ -444,7 +486,7 @@ pub async fn run(mut game_state: Box<dyn GransealGameState>) {
 
     let mut state = StateShapeRender::new(&window, game_state).await;
     let mut frames = 0;
-    let mut timer = std::time::Instant::now();
+    let mut frame_timer = std::time::Instant::now();
     let mut delta = std::time::Instant::now();
 
     event_loop.run(move |event, _, control_flow| {
@@ -480,10 +522,10 @@ pub async fn run(mut game_state: Box<dyn GransealGameState>) {
                 match state.render() {
                     Ok(_) => {
                         frames += 1;
-                        if timer.elapsed().as_secs_f64() > 1.0 {
+                        if frame_timer.elapsed().as_secs_f64() > 1.0 {
                             window.set_title(format!("{}: {}",config.title,frames).as_str());
                             frames = 0;
-                            timer = std::time::Instant::now();
+                            frame_timer = std::time::Instant::now();
                         }
                     }
                     Err(wgpu::SurfaceError::Lost) => state.resize(state.size),
