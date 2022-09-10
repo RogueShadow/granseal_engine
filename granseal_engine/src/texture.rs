@@ -1,6 +1,7 @@
 use image::GenericImageView;
 use anyhow::*;
 
+
 pub struct TextureInfo {
     pub(crate) bind_group: wgpu::BindGroup,
     pub(crate) path: String,
@@ -80,7 +81,7 @@ impl Texture {
                 ..Default::default()
             }
         );
-        
+
         let bind_group = device.create_bind_group( &wgpu::BindGroupDescriptor {
             label: Some("texture_bind_group"),
             layout: &bind_group_layout,

@@ -9,6 +9,7 @@ use std::{
 use rand_xorshift::XorShiftRng;
 use rand::prelude::*;
 use granseal_engine::{GransealGameConfig, events::{Event, Key}, GransealGameState, shape::*, VSyncMode};
+use granseal_engine::events::KeyState;
 
 pub struct Vector2d {
     x: f32,
@@ -29,6 +30,7 @@ pub struct Entity {
     size: Vector2d,
     velocity: Vector2d,
     color: Color,
+    angle: f32,
     kind: ShapeKind,
 }
 
@@ -41,7 +43,8 @@ impl Entity {
             size: Vector2d::new(r.gen_range(16.0..64.00), r.gen_range(16.0..64.00)),
             velocity: Vector2d::new( r.gen_range(-speed..speed), r.gen_range(-speed..speed)),
             color: Color::rgb(r.gen(),r.gen(),r.gen()),
-            kind: r.gen_range(0..6),
+            angle: r.gen_range(0.0..6.28),
+            kind: r.gen_range(0..=5),
         }
     }
 }
@@ -51,6 +54,10 @@ pub struct GameState {
     position: Vector2d,
     entities: Vec<Entity>,
     rng: XorShiftRng,
+    clear: bool,
+    bounce: bool,
+    flash: bool,
+    rotate: bool,
 }
 
 impl GameState {
@@ -79,7 +86,7 @@ impl GameState {
         println!("Entities: {:?}",entities.len());
         Self {
             config: GransealGameConfig::new()
-                .title("Shapes Go Fly WOooo")
+                .title("Press '1' '2' '3' hold '4'")
                 .vsync(VSyncMode::VSyncOff),
             position: Vector2d {
                 x: 0.0,
@@ -87,6 +94,10 @@ impl GameState {
             },
             entities,
             rng: XorShiftRng::from_rng(rand::thread_rng()).unwrap(),
+            clear: true,
+            bounce: false,
+            flash: false,
+            rotate: false,
         }
     }
 }
@@ -96,7 +107,35 @@ impl GransealGameState for GameState {
     fn config(&mut self) -> &mut GransealGameConfig {
         &mut self.config
     }
-    fn event(&mut self, _event: &Event) -> bool {
+    fn event(&mut self, event: &Event) -> bool {
+        match event {
+            Event::KeyEvent {
+                state: KeyState::Pressed,
+                key: Key::Key1,
+                ..
+            } => {self.bounce = !self.bounce}
+            Event::KeyEvent {
+                state: KeyState::Pressed,
+                key: Key::Key2,
+                ..
+            } => {self.flash = !self.flash}
+            Event::KeyEvent {
+                state: KeyState::Pressed,
+                key: Key::Key3,
+                ..
+            } => {self.rotate = !self.rotate}
+            Event::KeyEvent {
+                state,
+                key: Key::Key4,
+                ..
+            } => {self.clear = match state {
+                KeyState::Pressed => {false}
+                KeyState::Released => {true}
+            }}
+            Event::MouseButton { .. } => {}
+            Event::MouseMoved { .. } => {}
+            _ => {}
+        }
         false
     }
 
@@ -114,9 +153,14 @@ impl GransealGameState for GameState {
         if key(S) {self.position.y += speed}
         if key(D) {self.position.x += speed}
 
+
         for mut e in &mut self.entities {
-            e.pos.x += e.velocity.x * delta.as_secs_f32();
-            e.pos.y += e.velocity.y * delta.as_secs_f32();
+            if self.bounce {
+                e.pos.x += e.velocity.x * delta.as_secs_f32();
+                e.pos.y += e.velocity.y * delta.as_secs_f32();
+            }
+
+            if self.rotate {e.angle += delta.as_secs_f32();}
             if e.pos.x <= 0.0 {e.velocity.x *= -1.0}
             if e.pos.y <= 0.0 {e.velocity.y *= -1.0}
             if e.pos.x >= self.config.width as f32 - e.size.x {e.velocity.x *= -1.0}
@@ -126,14 +170,15 @@ impl GransealGameState for GameState {
     }
 
     fn render(&mut self, g: &mut Graphics) {
-        g.clear();
+        if self.clear {g.clear();}
         g.set_translation(self.position.x,self.position.y);
         let r = &mut self.rng;
         for e in &mut self.entities {
-            e.color = Color::rgb(r.gen(),r.gen(),r.gen());
+            if self.flash {e.color = Color::rgb(r.gen(),r.gen(),r.gen());}
             g.color(e.color);
+            g.set_rotation(e.angle);
             g.shape(
-                r.gen_range(0..=5),
+                e.kind,
                 e.pos.x,
                 e.pos.y,
                 e.size.x,

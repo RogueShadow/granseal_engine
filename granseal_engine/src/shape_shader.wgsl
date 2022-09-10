@@ -10,16 +10,6 @@ struct VertexInput {
     @location(3) kind: i32,
 }
 
-fn convert_rect(rect: vec4<f32>, screen: ScreenUniform) -> vec4<f32> {
-    let rect = vec4<f32>(
-        (rect[0] / screen.width) * 2.0 - 1.0,
-        (rect[1] / screen.height) * 2.0 - 1.0,
-        (rect[2] / screen.width) * 2.0,
-        (rect[3] / screen.height * 2.0)
-    );
-    return rect;
-}
-
 fn check_oval(h: f32, k: f32, x: f32, y: f32, a:  f32, b: f32) -> bool {
     return ((pow(x-h,2.0) / pow(a,2.0)) + (pow(y-k,2.0) / pow(b,2.0))) >= 1.0;
 }
@@ -44,37 +34,57 @@ struct VertexOutput {
     @location(3) @interpolate(linear,center) tex_coords: vec2<f32>,
 };
 
+fn convert(x: f32, y: f32, screen: ScreenUniform) -> vec2<f32> {
+    let nx = ((x / screen.width) * 2.0) - 1.0;
+    let ny = ((y / screen.height) * 2.0) - 1.0;
+    return vec2<f32>(nx,ny);
+}
+
 @vertex
 fn vs_main(@builtin(vertex_index) index: u32, in: VertexInput) -> VertexOutput {
-    var box = convert_rect(in.rect, screen);
-    var out: VertexOutput;
+    let rotation = mat2x2<f32>(cos(in.angle),-sin(in.angle),sin(in.angle),cos(in.angle));
+
+    //x y in screen coordinates 0,0 is top left.
+    var screen_position =  vec2<f32>(in.rect[0],in.rect[1]);
+    //width height in screen coordinates.
+    var screen_size = vec2<f32>(in.rect[2],in.rect[3]);
+
+    var p1 = convert(screen_position.x,screen_position.y,screen);
+    var pcenter = convert(screen_position.x - screen_size.x/2.0, screen_position.y + screen_size.y/2.0, screen);
+    var p2 = convert(screen_position.x + screen_size.x,screen_position.y + screen_size.y, screen);
+
     var x = 0.0;
     var y = 0.0;
-    switch (index) {
+    var out: VertexOutput;
+
+    switch (index) {  // construct a triangle strip of two triangles from the index using 2 points from above.
         case 0u, 4u: {      // bottom left
-            x = box[0];
-            y = box[1];
+            x = p1.x;
+            y = p1.y;
             out.tex_coords = vec2(0.0,0.0);
         }
         case 1u: {       //  top left
-            x = box[0];
-            y = box[1] + box[3];
+            x = p1.x;
+            y = p2.y;
             out.tex_coords = vec2(0.0,1.0);
         }
         case 2u: {      // top right
-            x = box[0] + box[2];
-            y = box[1] + box[3];
+            x = p2.x;
+            y = p2.y;
             out.tex_coords = vec2(1.0,1.0);
         }
         case 3u: {    // bottom right
-            x = box[0] + box[2];
-            y = box[1];
+            x = p2.x;
+            y = p1.y;
             out.tex_coords = vec2(1.0,0.0);
         }
         default: {}
     }
     y = -y;
-    out.clip_position = vec4<f32>(x,y,0.0,1.0);
+
+    var clip_pos = rotation * vec2<f32>(x,y);
+
+    out.clip_position = vec4<f32>(clip_pos,0.0,1.0);
     out.rect = in.rect;
     out.kind =  in.kind;
     out.color = in.color;

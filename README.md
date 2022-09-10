@@ -9,7 +9,7 @@
 <li>Keep the complicated bits on the engine side</li>
 <li>Sensible defaults, but able to change things as desired</li>
 <li>To someday have tests and proper error  handling</li>
-<li>Builder pattern is nice</li>
+<li>Build pattern is nice</li>
 <li>Having goals</li>
 </ul>
 <h3>Features</h3>
