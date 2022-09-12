@@ -45,9 +45,52 @@ pub const OVAL: ShapeKind = 3;
 pub const TEX_RECT: ShapeKind = 4;//TODO implement textured rect.
 pub const TEX_OVAL: ShapeKind = 5;//TODO implement textured oval.
 
-pub struct ShapeOptions {
-    texture: Texture,
+#[repr(C)]
+#[derive(Copy,Clone,Debug,bytemuck::Pod,bytemuck::Zeroable)]
+pub struct Vertex {
+    pub x: f32,
+    pub y: f32,
+    pub u: f32,
+    pub v: f32,
+    pub red: f32,
+    pub green: f32,
+    pub blue: f32,
+    pub alpha: f32,
 }
+impl Vertex {
+    pub fn desc<'a>() -> wgpu::VertexBufferLayout<'a> {
+        wgpu::VertexBufferLayout {
+            array_stride: std::mem::size_of::<Vertex>() as wgpu::BufferAddress,
+            step_mode: wgpu::VertexStepMode::Vertex,
+            attributes: &[
+                wgpu::VertexAttribute {
+                    offset: 0,
+                    shader_location: 0,
+                    format: wgpu::VertexFormat::Float32x2,
+                },
+                wgpu::VertexAttribute {
+                    offset: std::mem::size_of::<[f32; 2]>() as wgpu::BufferAddress,
+                    shader_location: 1,
+                    format: wgpu::VertexFormat::Float32x2,
+                },
+                wgpu::VertexAttribute {
+                    offset: std::mem::size_of::<[f32; 4]>() as wgpu::BufferAddress,
+                    shader_location: 2,
+                    format: wgpu::VertexFormat::Float32x4,
+                },
+            ]
+        }
+    }
+}
+#[repr(C)]
+#[derive(Copy,Clone,Debug,bytemuck::Pod,bytemuck::Zeroable)]
+pub struct Quad {
+    pub tl: Vertex,
+    pub tr: Vertex,
+    pub br: Vertex,
+    pub bl: Vertex,
+}
+
 
 #[repr(C)]
 #[derive(Copy,Clone,Debug,bytemuck::Pod,bytemuck::Zeroable)]

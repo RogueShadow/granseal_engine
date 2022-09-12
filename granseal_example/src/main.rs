@@ -65,7 +65,7 @@ impl GameState {
         let mut entities = vec![];
         let mut r = XorShiftRng::from_rng(rand::thread_rng()).unwrap();
 
-        for _i in 0..50 {
+        for _i in 0..1_000 {
             entities.push(Entity::random(r.gen::<f32>() * 800.0,r.gen::<f32>() * 600.0));
         }
 
@@ -170,14 +170,14 @@ impl GransealGameState for GameState {
     }
 
     fn render(&mut self, g: &mut Graphics) {
-        if self.clear {g.clear();}
+        if self.clear {g.clear();} // clears shape vector ;; shape is a struct with x,y,w,h,r,g,b,angle,kind of shape
         g.set_translation(self.position.x,self.position.y);
         let r = &mut self.rng;
         for e in &mut self.entities {
             if self.flash {e.color = Color::rgb(r.gen(),r.gen(),r.gen());}
             g.color(e.color);
             g.set_rotation(e.angle);
-            g.shape(
+            g.shape(                // pushes a new shape to the vector, with some calculation from state of Graphics.
                 e.kind,
                 e.pos.x,
                 e.pos.y,
@@ -185,7 +185,6 @@ impl GransealGameState for GameState {
                 e.size.y
             );
         }
-
     }
 }
 

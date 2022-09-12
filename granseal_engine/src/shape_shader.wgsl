@@ -19,6 +19,8 @@ fn check_oval2(h: f32, k: f32, x: f32, y: f32, a:  f32, b: f32) -> f32 {
 
 @group(0) @binding(0)
 var<uniform> screen: ScreenUniform;
+@group(0) @binding(1)
+var<uniform> timer: f32;
 
 @group(1) @binding(0)
 var t: texture_2d<f32>;
