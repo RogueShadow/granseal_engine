@@ -1,4 +1,3 @@
-use crate::Texture;
 
 #[derive(Copy,Clone,Debug)]
 pub struct Color {
@@ -10,32 +9,28 @@ pub struct Color {
 
 impl Color {
     pub const fn  new(r: f32, g: f32, b: f32, a: f32) -> Self {
-        Self {
-            r,g,b,a,
-        }
+        Self {r,g,b,a}
     }
     pub const fn rgb(r: f32, g: f32, b: f32) -> Self {
         Self::new(r,g,b,1.0)
     }
+    pub const BLACK: Self = Self::rgb(0.0,0.0,0.0);
+    pub const WHITE: Self = Self::rgb(1.0,1.0,1.0);
+    pub const RED: Self = Self::rgb(1.0, 0.0, 0.0);
+    pub const LIME: Self = Self::rgb(0.0, 1.0, 0.0);
+    pub const BLUE: Self = Self::rgb(0.0,0.0,1.0);
+    pub const YELLOW: Self = Self::rgb(1.0,1.0,0.0);
+    pub const CYAN: Self = Self::rgb(0.0,1.0,1.0);
+    pub const MAGENTA: Self = Self::rgb(1.0,0.0,1.0);
+    pub const SILVER: Self =  Self::rgb(0.75,0.75,0.75);
+    pub const GRAY: Self = Self::rgb(0.5,0.5,0.5);
+    pub const MAROON: Self = Self::rgb(0.5,0.0,0.0);
+    pub const OLIVE: Self = Self::rgb(0.5,0.5,0.0);
+    pub const GREEN: Self = Self::rgb(0.0,0.5,0.0);
+    pub const PURPLE: Self = Self::rgb(0.5,0.0,0.5);
+    pub const TEAL: Self = Self::rgb(0.0,0.5,0.5);
+    pub const NAVY: Self = Self::rgb(0.0,0.0,0.5);
 }
-
-pub const BLACK: Color = Color::rgb(0.0,0.0,0.0);
-pub const WHITE: Color = Color::rgb(1.0,1.0,1.0);
-pub const RED: Color = Color::rgb(1.0, 0.0, 0.0);
-pub const LIME: Color = Color::rgb(0.0, 1.0, 0.0);
-pub const BLUE: Color = Color::rgb(0.0,0.0,1.0);
-pub const YELLOW: Color = Color::rgb(1.0,1.0,0.0);
-pub const CYAN: Color = Color::rgb(0.0,1.0,1.0);
-pub const MAGENTA: Color = Color::rgb(1.0,0.0,1.0);
-pub const SILVER: Color =  Color::rgb(0.75,0.75,0.75);
-pub const GRAY: Color = Color::rgb(0.5,0.5,0.5);
-pub const MAROON: Color = Color::rgb(0.5,0.0,0.0);
-pub const OLIVE: Color = Color::rgb(0.5,0.5,0.0);
-pub const GREEN: Color = Color::rgb(0.0,0.5,0.0);
-pub const PURPLE: Color = Color::rgb(0.5,0.0,0.5);
-pub const TEAL: Color = Color::rgb(0.0,0.5,0.5);
-pub const NAVY: Color = Color::rgb(0.0,0.0,0.5);
-
 
 pub type ShapeKind = i32;
 pub const FILL_RECT: ShapeKind = 0;
@@ -201,8 +196,8 @@ pub struct Graphics {
 impl Graphics {
     pub fn new() -> Self {
         Self {
-            fill_color: WHITE,
-            outline_color: BLACK,
+            fill_color: Color::WHITE,
+            outline_color: Color::BLACK,
             outline: false,
             outline_thickness: 1.0,
             shapes: vec![],

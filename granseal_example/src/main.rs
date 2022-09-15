@@ -53,7 +53,7 @@ impl Entity {
             pos: Vector2d::new(x,y),
             size: Vector2d::new(1.0,1.0),
             velocity: Vector2d::new(0.0,0.0),
-            color: WHITE,
+            color: Color::WHITE,
             angle: 0.0,
             kind: FILL_RECT,
         }
@@ -100,36 +100,37 @@ impl GameState {
             entities.push(Entity::random(r.gen::<f32>() * 800.0,r.gen::<f32>() * 600.0));
         }
 
+
         let mut test = vec!(
-            Entity::new(0.0,0.0).size(64.0,64.0).color(NAVY).kind(FILL_RECT),
-            Entity::new(800.0 - 64.0,0.0).size(64.0,64.0).color(NAVY).kind(FILL_RECT),
-            Entity::new(800.0 - 64.0,600.0 - 64.0).size(64.0,64.0).color(NAVY).kind(FILL_RECT),
-            Entity::new( 0.0, 600.0 - 64.0).size(64.0,64.0).color(NAVY).kind(FILL_RECT),
+            Entity::new(0.0,0.0).size(64.0,64.0).color(Color::NAVY).kind(FILL_RECT),
+            Entity::new(800.0 - 64.0,0.0).size(64.0,64.0).color(Color::NAVY).kind(FILL_RECT),
+            Entity::new(800.0 - 64.0,600.0 - 64.0).size(64.0,64.0).color(Color::NAVY).kind(FILL_RECT),
+            Entity::new( 0.0, 600.0 - 64.0).size(64.0,64.0).color(Color::NAVY).kind(FILL_RECT),
 
-            Entity::new(64.0,64.0).size(64.0,64.0).color(CYAN).kind(RECT),
-            Entity::new(800.0 - 64.0 - 64.0,64.0).size(64.0,64.0).color(CYAN).kind(RECT),
-            Entity::new(800.0 - 64.0 - 64.0,600.0 - 64.0 - 64.0).size(64.0,64.0).color(CYAN).kind(RECT),
-            Entity::new( 64.0, 600.0 - 64.0 - 64.0).size(64.0,64.0).color(CYAN).kind(RECT),
+            Entity::new(64.0,64.0).size(64.0,64.0).color(Color::CYAN).kind(RECT),
+            Entity::new(800.0 - 64.0 - 64.0,64.0).size(64.0,64.0).color(Color::CYAN).kind(RECT),
+            Entity::new(800.0 - 64.0 - 64.0,600.0 - 64.0 - 64.0).size(64.0,64.0).color(Color::CYAN).kind(RECT),
+            Entity::new( 64.0, 600.0 - 64.0 - 64.0).size(64.0,64.0).color(Color::CYAN).kind(RECT),
 
-            Entity::new(0.0,64.0).size(64.0,64.0).color(WHITE).kind(TEX_RECT),
-            Entity::new(800.0 - 64.0,64.0).size(64.0,64.0).color(WHITE).kind(TEX_RECT),
-            Entity::new(800.0 - 64.0,600.0 - 128.0).size(64.0,64.0).color(WHITE).kind(TEX_RECT),
-            Entity::new( 0.0, 600.0 - 128.0).size(64.0,64.0).color(WHITE).kind(TEX_RECT),
+            Entity::new(0.0,64.0).size(64.0,64.0).color(Color::WHITE).kind(TEX_RECT),
+            Entity::new(800.0 - 64.0,64.0).size(64.0,64.0).color(Color::WHITE).kind(TEX_RECT),
+            Entity::new(800.0 - 64.0,600.0 - 128.0).size(64.0,64.0).color(Color::WHITE).kind(TEX_RECT),
+            Entity::new( 0.0, 600.0 - 128.0).size(64.0,64.0).color(Color::WHITE).kind(TEX_RECT),
 
-            Entity::new(64.0,128.0).size(64.0,64.0).color(WHITE).kind(TEX_OVAL),
-            Entity::new(800.0 - 64.0 - 64.0,128.0).size(64.0,64.0).color(WHITE).kind(TEX_OVAL),
-            Entity::new(800.0 - 64.0 - 64.0,600.0 - 128.0 - 64.0).size(64.0,64.0).color(WHITE).kind(TEX_OVAL),
-            Entity::new( 64.0, 600.0 - 64.0 - 128.0).size(64.0,64.0).color(WHITE).kind(TEX_OVAL),
+            Entity::new(64.0,128.0).size(64.0,64.0).color(Color::WHITE).kind(TEX_OVAL),
+            Entity::new(800.0 - 64.0 - 64.0,128.0).size(64.0,64.0).color(Color::WHITE).kind(TEX_OVAL),
+            Entity::new(800.0 - 64.0 - 64.0,600.0 - 128.0 - 64.0).size(64.0,64.0).color(Color::WHITE).kind(TEX_OVAL),
+            Entity::new( 64.0, 600.0 - 64.0 - 128.0).size(64.0,64.0).color(Color::WHITE).kind(TEX_OVAL),
 
-            Entity::new(128.0,128.0).size(64.0,64.0).color(MAGENTA).kind(OVAL),
-            Entity::new(800.0 - 128.0 - 64.0,128.0).size(64.0,64.0).color(MAGENTA).kind(OVAL),
-            Entity::new(800.0 - 128.0 - 64.0,600.0 - 128.0 - 64.0).size(64.0,64.0).color(MAGENTA).kind(OVAL),
-            Entity::new( 128.0, 600.0 - 128.0 - 64.0).size(64.0,64.0).color(MAGENTA).kind(OVAL),
+            Entity::new(128.0,128.0).size(64.0,64.0).color(Color::MAGENTA).kind(OVAL),
+            Entity::new(800.0 - 128.0 - 64.0,128.0).size(64.0,64.0).color(Color::MAGENTA).kind(OVAL),
+            Entity::new(800.0 - 128.0 - 64.0,600.0 - 128.0 - 64.0).size(64.0,64.0).color(Color::MAGENTA).kind(OVAL),
+            Entity::new( 128.0, 600.0 - 128.0 - 64.0).size(64.0,64.0).color(Color::MAGENTA).kind(OVAL),
 
-            Entity::new(192.0,192.0).size(64.0,64.0).color(RED).kind(FILL_OVAL),
-            Entity::new(800.0 - 256.0,192.0).size(64.0,64.0).color(RED).kind(FILL_OVAL),
-            Entity::new(800.0 - 256.0,600.0 - 256.0).size(64.0,64.0).color(RED).kind(FILL_OVAL),
-            Entity::new( 192.0, 600.0 - 256.0).size(64.0,64.0).color(RED).kind(FILL_OVAL),
+            Entity::new(192.0,192.0).size(64.0,64.0).color(Color::RED).kind(FILL_OVAL),
+            Entity::new(800.0 - 256.0,192.0).size(64.0,64.0).color(Color::RED).kind(FILL_OVAL),
+            Entity::new(800.0 - 256.0,600.0 - 256.0).size(64.0,64.0).color(Color::RED).kind(FILL_OVAL),
+            Entity::new( 192.0, 600.0 - 256.0).size(64.0,64.0).color(Color::RED).kind(FILL_OVAL),
         );
 
         entities.append(&mut test);

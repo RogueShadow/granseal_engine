@@ -74,8 +74,8 @@ fn vs_main(@builtin(vertex_index) index: u32, in: VertexInput) -> VertexOutput {
 
     p.y = -p.y;
     out.clip_position = vec4<f32>(p,0.0,1.0);
-    out.pos = translation;
-    out.size = size;
+    out.pos = in.pos;
+    out.size = in.size;
     out.kind =  in.kind;
     out.color = in.color;
     return out;
