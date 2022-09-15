@@ -1,15 +1,12 @@
+extern crate core;
+
 use std::{
     collections::HashMap,
     time::Duration,
-    path::Path,
 };
-use std::time::Instant;
-use image::EncodableLayout;
 
 #[cfg(target_arch="wasm32")]
 use wasm_bindgen::prelude::*;
-
-use wgpu::{BufferAddress, BufferBindingType, util::DeviceExt};
 
 use winit::{
     event::*,
@@ -19,12 +16,11 @@ use winit::{
     },
     window::{
         WindowBuilder,
-        Window
     },
 };
 
 use crate::events::{KeyState, map_events};
-use crate::renderer::StateShapeRender;
+use crate::renderer::{Castle, StateShapeRender};
 use crate::shape::*;
 use crate::texture::{Texture, TextureInfo};
 
@@ -32,7 +28,6 @@ mod texture;
 pub mod shape;
 pub mod events;
 pub mod renderer;
-
 
 
 #[repr(C)]
@@ -63,7 +58,9 @@ pub struct GransealGameConfig {
     pub height: i32,
     pub title: &'static str,
     pub vsync: VSyncMode,
+    pub clear_color: [f64;4],
 }
+
 impl GransealGameConfig {
     pub fn new() -> Self {
         Self {
@@ -71,6 +68,7 @@ impl GransealGameConfig {
             width: 800,
             height: 600,
             vsync: VSyncMode::VSyncOn,
+            clear_color: [0.0,0.0,0.0,1.0],
         }
     }
     pub fn title(mut self, title: &'static str) -> Self {
@@ -81,12 +79,16 @@ impl GransealGameConfig {
         self.vsync = mode;
         self
     }
+    pub fn clear_color(mut self, color: [f64;4]) -> Self {
+        self.clear_color = color;
+        self
+    }
 }
 
 pub trait GransealGameState {
     fn config(&mut self) -> &mut GransealGameConfig;
     fn event(&mut self, event: &events::Event) -> bool;
-    fn update(&mut self,delta: Duration, key_down: &HashMap<events::Key,bool>);
+    fn update(&mut self,delta: Duration, castle: &Castle);
     fn render(&mut self, graphics: &mut Graphics);
 }
 

@@ -1,11 +1,29 @@
 use std::collections::HashMap;
+use std::ops::Index;
 use std::path::Path;
 use std::time::{Duration, Instant};
+
 use image::EncodableLayout;
 use wgpu::util::DeviceExt;
 use winit::event::WindowEvent;
 use winit::window::Window;
+
 use crate::{events, GransealGameState, Graphics, KeyState, map_events, map_present_modes, Shape, Texture, TextureInfo};
+
+pub struct Castle {
+    pub key_down: HashMap<events::Key,bool>,
+    mouse_pos: [f64; 2],
+    clear_color: [f64; 4],
+    timer: Instant,
+}
+impl Castle {
+    pub fn key(&self,k: events::Key) -> bool {
+        if self.key_down.contains_key(&k) {
+            *self.key_down.index(&k)
+        } else {false}
+    }
+}
+
 
 #[allow(unused)]
 pub struct StateShapeRender {
@@ -14,8 +32,6 @@ pub struct StateShapeRender {
     queue: wgpu::Queue,
     config: wgpu::SurfaceConfiguration,
     pub(crate) size: winit::dpi::PhysicalSize<u32>,
-    mouse_pos: [f64; 2],
-    key_down: HashMap<events::Key,bool>,
     game_state: Box<dyn GransealGameState>,
     textures: HashMap<String,TextureInfo>,
     graphics: Graphics,
@@ -23,10 +39,9 @@ pub struct StateShapeRender {
     render_pipeline: wgpu::RenderPipeline,
     screen_buffer: wgpu::Buffer,
     screen_bind_group: wgpu::BindGroup,
-    clear_color: [f64; 4],
     texture_bind_group_layout: wgpu::BindGroupLayout,
-    timer: Instant,
     time_buffer: wgpu::Buffer,
+    castle: Castle,
 }
 
 impl StateShapeRender {
@@ -80,7 +95,7 @@ impl StateShapeRender {
             }
         );
 
-        let clear_color = [0.1,0.2,0.3,1.0];
+        let clear_color = game_state.config().clear_color;
 
         let screen_buffer = device.create_buffer_init(
             &wgpu::util::BufferInitDescriptor {
@@ -204,14 +219,19 @@ impl StateShapeRender {
             multiview: None,
         });
 
+        let castle = Castle {
+            key_down,
+            mouse_pos,
+            clear_color,
+            timer
+        };
+
         StateShapeRender {
             surface,
             device,
             queue,
             config,
             size,
-            mouse_pos,
-            key_down,
             game_state,
             textures: HashMap::new(),
             graphics,
@@ -219,10 +239,9 @@ impl StateShapeRender {
             render_pipeline,
             screen_buffer,
             screen_bind_group,
-            clear_color,
             texture_bind_group_layout,
-            timer,
             time_buffer,
+            castle,
         }
     }
 
@@ -270,10 +289,10 @@ impl StateShapeRender {
                 } => {
                     match state {
                         KeyState::Pressed => {
-                            self.key_down.insert(key,true);
+                            self.castle.key_down.insert(key,true);
                         },
                         KeyState::Released => {
-                            self.key_down.insert(key,false);
+                            self.castle.key_down.insert(key,false);
                         }
                     }
                 }
@@ -287,7 +306,7 @@ impl StateShapeRender {
     }
 
     pub(crate) fn update(&mut self, delta_time: Duration) {
-        self.game_state.update(delta_time, &self.key_down);
+        self.game_state.update(delta_time, &self.castle);
     }
 
     pub(crate) fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
@@ -302,7 +321,7 @@ impl StateShapeRender {
         self.shape_buffer.destroy();
         self.shape_buffer = shape_buffer;
 
-        self.queue.write_buffer(&self.time_buffer, 0, &self.timer.elapsed().as_secs_f32().to_ne_bytes().as_slice());
+        self.queue.write_buffer(&self.time_buffer, 0, &self.castle.timer.elapsed().as_secs_f32().to_ne_bytes().as_slice());
 
         let output = self.surface.get_current_texture()?;
         let view = output.texture.create_view(&wgpu::TextureViewDescriptor::default());
@@ -318,10 +337,10 @@ impl StateShapeRender {
                     resolve_target: None,
                     ops: wgpu::Operations {
                         load: wgpu::LoadOp::Clear(wgpu::Color {
-                            r: *self.clear_color.get(0).unwrap(),
-                            g: *self.clear_color.get(1).unwrap(),
-                            b: *self.clear_color.get(2).unwrap(),
-                            a: *self.clear_color.get(3).unwrap(),
+                            r: *self.castle.clear_color.get(0).unwrap(),
+                            g: *self.castle.clear_color.get(1).unwrap(),
+                            b: *self.castle.clear_color.get(2).unwrap(),
+                            a: *self.castle.clear_color.get(3).unwrap(),
                         }),
                         store: true,
                     },

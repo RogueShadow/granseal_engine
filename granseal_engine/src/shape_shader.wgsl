@@ -1,13 +1,10 @@
-struct ScreenUniform {
-    width: f32,
-    height: f32,
-}
 
 struct VertexInput {
-    @location(0) rect: vec4<f32>,
-    @location(1) color: vec4<f32>,
-    @location(2) angle: f32,
-    @location(3) kind: i32,
+    @location(0) pos: vec2<f32>,
+    @location(1) size: vec2<f32>,
+    @location(2) color: vec4<f32>,
+    @location(3) angle: f32,
+    @location(4) kind: i32,
 }
 
 fn check_oval(h: f32, k: f32, x: f32, y: f32, a:  f32, b: f32) -> bool {
@@ -18,7 +15,7 @@ fn check_oval2(h: f32, k: f32, x: f32, y: f32, a:  f32, b: f32) -> f32 {
 }
 
 @group(0) @binding(0)
-var<uniform> screen: ScreenUniform;
+var<uniform> screen: vec2<f32>;
 @group(0) @binding(1)
 var<uniform> timer: f32;
 
@@ -30,64 +27,55 @@ var s: sampler;
 
 struct VertexOutput {
     @builtin(position) clip_position: vec4<f32>,
-    @location(0) @interpolate(perspective,center) color: vec4<f32>,
-    @location(1) rect: vec4<f32>,
-    @location(2) kind: i32,
-    @location(3) @interpolate(linear,center) tex_coords: vec2<f32>,
+    @location(0) @interpolate(linear,center) color: vec4<f32>,
+    @location(1) pos: vec2<f32>,
+    @location(2) size: vec2<f32>,
+    @location(3) kind: i32,
+    @location(4) @interpolate(linear,center) tex_coords: vec2<f32>,
 };
 
-fn convert(x: f32, y: f32, screen: ScreenUniform) -> vec2<f32> {
-    let nx = ((x / screen.width) * 2.0) - 1.0;
-    let ny = ((y / screen.height) * 2.0) - 1.0;
-    return vec2<f32>(nx,ny);
-}
 
 @vertex
 fn vs_main(@builtin(vertex_index) index: u32, in: VertexInput) -> VertexOutput {
+    let aspect = screen.x/screen.y;
     let rotation = mat2x2<f32>(cos(in.angle),-sin(in.angle),sin(in.angle),cos(in.angle));
+    let size = (((vec2<f32>(in.size.x,in.size.y)  ) / screen) );
+    let translation = ((vec2<f32>(in.pos.x,in.pos.y) / screen) - vec2<f32>(0.5,0.5) + size/2.0 ) * 2.0;
 
-    //x y in screen coordinates 0,0 is top left.
-    var screen_position =  vec2<f32>(in.rect[0],in.rect[1]);
-    //width height in screen coordinates.
-    var screen_size = vec2<f32>(in.rect[2],in.rect[3]);
+    var p = vec2<f32>(0.0,0.0);
 
-    var p1 = convert(screen_position.x,screen_position.y,screen);
-    var pcenter = convert(screen_position.x - screen_size.x/2.0, screen_position.y + screen_size.y/2.0, screen);
-    var p2 = convert(screen_position.x + screen_size.x,screen_position.y + screen_size.y, screen);
-
-    var x = 0.0;
-    var y = 0.0;
     var out: VertexOutput;
 
-    switch (index) {  // construct a triangle strip of two triangles from the index using 2 points from above.
+    switch (index) {  // construct a triangle strip of two triangles from the index.
         case 0u, 4u: {      // bottom left
-            x = p1.x;
-            y = p1.y;
+            p.x = -size.x;
+            p.y = -size.y;
             out.tex_coords = vec2(0.0,0.0);
         }
         case 1u: {       //  top left
-            x = p1.x;
-            y = p2.y;
+            p.x = -size.x;
+            p.y = size.y;
             out.tex_coords = vec2(0.0,1.0);
         }
         case 2u: {      // top right
-            x = p2.x;
-            y = p2.y;
+            p.x = size.x;
+            p.y = size.y;
             out.tex_coords = vec2(1.0,1.0);
         }
         case 3u: {    // bottom right
-            x = p2.x;
-            y = p1.y;
+            p.x = size.x;
+            p.y = -size.y;
             out.tex_coords = vec2(1.0,0.0);
         }
         default: {}
     }
-    y = -y;
 
-    var clip_pos = rotation * vec2<f32>(x,y);
+    p = (rotation * p) + translation;
 
-    out.clip_position = vec4<f32>(clip_pos,0.0,1.0);
-    out.rect = in.rect;
+    p.y = -p.y;
+    out.clip_position = vec4<f32>(p,0.0,1.0);
+    out.pos = translation;
+    out.size = size;
     out.kind =  in.kind;
     out.color = in.color;
     return out;
@@ -105,12 +93,12 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     }
     if (in.kind == 1) {
         let check = check_oval(
-            in.rect[0] + in.rect[2]/2.0,
-            in.rect[1] + in.rect[3]/2.0,
+            in.pos.x + in.size.x/2.0,
+            in.pos.y + in.size.y/2.0,
             in.clip_position[0],
             in.clip_position[1],
-            in.rect[2] / 2.0,
-            in.rect[3] / 2.0,
+            in.size.x / 2.0,
+            in.size.y / 2.0,
         );
         if (check) {
             color_out.a = 0.0;
@@ -119,13 +107,13 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     if (in.kind == 2) {
         let thickness = 4.0;
 
-        let centerx = in.rect[0] + in.rect[2]/2.0;
-        let centery = in.rect[1] + in.rect[3]/2.0;
+        let centerx = in.pos.x + in.pos.x/2.0;
+        let centery = in.pos.y + in.pos.y/2.0;
 
         let dx = abs(in.clip_position[0] - centerx) + thickness;
         let dy = abs(in.clip_position[1] - centery) + thickness;
 
-        if (dx > in.rect[2]/2.0  || dy > in.rect[3]/2.0 ) {} else {
+        if (dx > in.pos.x/2.0  || dy > in.pos.y/2.0 ) {} else {
             color_out.a = 0.0;
         }
 
@@ -134,12 +122,12 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         let thickness = 4.0 / 10.0;
 
         let check = check_oval2(
-            in.rect[0] + in.rect[2]/2.0,
-            in.rect[1] + in.rect[3]/2.0,
+            in.pos.x + in.size.x/2.0,
+            in.pos.y + in.size.y/2.0,
             in.clip_position[0],
             in.clip_position[1],
-            in.rect[2] / 2.0,
-            in.rect[3] / 2.0,
+            in.size.x / 2.0,
+            in.size.y / 2.0,
         );
         if (check >= 1.0 || check <= 1.0 - thickness) {
             color_out.a = 0.0;
@@ -150,12 +138,12 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     }
     if (in.kind == 5) {
         let check = check_oval(
-            in.rect[0] + in.rect[2]/2.0,
-            in.rect[1] + in.rect[3]/2.0,
+            in.pos.x + in.size.x/2.0,
+            in.pos.y + in.size.y/2.0,
             in.clip_position[0],
             in.clip_position[1],
-            in.rect[2] / 2.0,
-            in.rect[3] / 2.0,
+            in.size.x / 2.0,
+            in.size.y / 2.0,
         );
         color_out = diffuse_color * color_out;
         if (check) {

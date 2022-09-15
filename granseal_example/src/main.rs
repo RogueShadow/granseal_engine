@@ -10,6 +10,7 @@ use rand_xorshift::XorShiftRng;
 use rand::prelude::*;
 use granseal_engine::{GransealGameConfig, events::{Event, Key}, GransealGameState, shape::*, VSyncMode};
 use granseal_engine::events::KeyState;
+use granseal_engine::renderer::Castle;
 
 pub struct Vector2d {
     x: f32,
@@ -47,6 +48,36 @@ impl Entity {
             kind: r.gen_range(0..=5),
         }
     }
+    fn new(x: f32, y: f32) -> Self {
+        Self {
+            pos: Vector2d::new(x,y),
+            size: Vector2d::new(1.0,1.0),
+            velocity: Vector2d::new(0.0,0.0),
+            color: WHITE,
+            angle: 0.0,
+            kind: FILL_RECT,
+        }
+    }
+    fn size(mut self,w: f32, h: f32) -> Self {
+        self.size = Vector2d::new(w,h);
+        self
+    }
+    fn velocity(mut self, vx: f32, vy: f32) -> Self {
+        self.velocity = Vector2d::new(vx,vy);
+        self
+    }
+    fn color(mut self,color: Color) -> Self  {
+        self.color = color;
+        self
+    }
+    fn angle(mut self, angle: f32) -> Self {
+        self.angle = angle;
+        self
+    }
+    fn kind(mut self, kind: ShapeKind) -> Self {
+        self.kind = kind;
+        self
+    }
 }
 
 pub struct GameState {
@@ -65,20 +96,55 @@ impl GameState {
         let mut entities = vec![];
         let mut r = XorShiftRng::from_rng(rand::thread_rng()).unwrap();
 
-        for _i in 0..1_000 {
+        for _i in 0..1_00 {
             entities.push(Entity::random(r.gen::<f32>() * 800.0,r.gen::<f32>() * 600.0));
         }
 
-        // let step = 8;
-        // let speed = 100.0;
+        let mut test = vec!(
+            Entity::new(0.0,0.0).size(64.0,64.0).color(NAVY).kind(FILL_RECT),
+            Entity::new(800.0 - 64.0,0.0).size(64.0,64.0).color(NAVY).kind(FILL_RECT),
+            Entity::new(800.0 - 64.0,600.0 - 64.0).size(64.0,64.0).color(NAVY).kind(FILL_RECT),
+            Entity::new( 0.0, 600.0 - 64.0).size(64.0,64.0).color(NAVY).kind(FILL_RECT),
+
+            Entity::new(64.0,64.0).size(64.0,64.0).color(CYAN).kind(RECT),
+            Entity::new(800.0 - 64.0 - 64.0,64.0).size(64.0,64.0).color(CYAN).kind(RECT),
+            Entity::new(800.0 - 64.0 - 64.0,600.0 - 64.0 - 64.0).size(64.0,64.0).color(CYAN).kind(RECT),
+            Entity::new( 64.0, 600.0 - 64.0 - 64.0).size(64.0,64.0).color(CYAN).kind(RECT),
+
+            Entity::new(0.0,64.0).size(64.0,64.0).color(WHITE).kind(TEX_RECT),
+            Entity::new(800.0 - 64.0,64.0).size(64.0,64.0).color(WHITE).kind(TEX_RECT),
+            Entity::new(800.0 - 64.0,600.0 - 128.0).size(64.0,64.0).color(WHITE).kind(TEX_RECT),
+            Entity::new( 0.0, 600.0 - 128.0).size(64.0,64.0).color(WHITE).kind(TEX_RECT),
+
+            Entity::new(64.0,128.0).size(64.0,64.0).color(WHITE).kind(TEX_OVAL),
+            Entity::new(800.0 - 64.0 - 64.0,128.0).size(64.0,64.0).color(WHITE).kind(TEX_OVAL),
+            Entity::new(800.0 - 64.0 - 64.0,600.0 - 128.0 - 64.0).size(64.0,64.0).color(WHITE).kind(TEX_OVAL),
+            Entity::new( 64.0, 600.0 - 64.0 - 128.0).size(64.0,64.0).color(WHITE).kind(TEX_OVAL),
+
+            Entity::new(128.0,128.0).size(64.0,64.0).color(MAGENTA).kind(OVAL),
+            Entity::new(800.0 - 128.0 - 64.0,128.0).size(64.0,64.0).color(MAGENTA).kind(OVAL),
+            Entity::new(800.0 - 128.0 - 64.0,600.0 - 128.0 - 64.0).size(64.0,64.0).color(MAGENTA).kind(OVAL),
+            Entity::new( 128.0, 600.0 - 128.0 - 64.0).size(64.0,64.0).color(MAGENTA).kind(OVAL),
+
+            Entity::new(192.0,192.0).size(64.0,64.0).color(RED).kind(FILL_OVAL),
+            Entity::new(800.0 - 256.0,192.0).size(64.0,64.0).color(RED).kind(FILL_OVAL),
+            Entity::new(800.0 - 256.0,600.0 - 256.0).size(64.0,64.0).color(RED).kind(FILL_OVAL),
+            Entity::new( 192.0, 600.0 - 256.0).size(64.0,64.0).color(RED).kind(FILL_OVAL),
+        );
+
+        entities.append(&mut test);
+
+        // let step = 64;
+        // let speed = 50.0;
         // for x in (0..800).step_by(step) {
         //     for y in (0..600).step_by(step) {
         //         entities.push(Entity {
         //             pos: Vector2d::new(x as f32,y as f32),
-        //             //velocity: Vector2d::new(r.gen_range(-speed..speed),r.gen_range(-speed..speed)),
-        //             velocity: Vector2d::new(0.0,0.0),
+        //             velocity: Vector2d::new(r.gen_range(-speed..speed),r.gen_range(-speed..speed)),
+        //             //velocity: Vector2d::new(0.0,0.0),
         //             size: Vector2d::new(step as f32, step as f32),
         //             color: Color::rgb(r.gen(),r.gen(),r.gen()),
+        //             angle: 0.0,
         //             kind: RECT
         //         })
         //     }
@@ -87,7 +153,8 @@ impl GameState {
         Self {
             config: GransealGameConfig::new()
                 .title("Press '1' '2' '3' hold '4'")
-                .vsync(VSyncMode::VSyncOff),
+                .vsync(VSyncMode::VSyncOff)
+                .clear_color([0.02,0.03,0.05,1.0]),
             position: Vector2d {
                 x: 0.0,
                 y: 0.0,
@@ -139,19 +206,14 @@ impl GransealGameState for GameState {
         false
     }
 
-    fn update(&mut self,delta: Duration, key_down: &HashMap<Key,bool>) {
+    fn update(&mut self,delta: Duration, castle: &Castle) {
         use Key::*;
-        let key = |k: Key| -> bool {
-            if key_down.contains_key(&k) {
-                *key_down.index(&k)
-            } else {false}
-        };
 
         let speed = 250.0 * delta.as_secs_f32();
-        if key(W) {self.position.y -= speed}
-        if key(A) {self.position.x -= speed}
-        if key(S) {self.position.y += speed}
-        if key(D) {self.position.x += speed}
+        if castle.key(W) {self.position.y -= speed}
+        if castle.key(A) {self.position.x -= speed}
+        if castle.key(S) {self.position.y += speed}
+        if castle.key(D) {self.position.x += speed}
 
 
         for mut e in &mut self.entities {
