@@ -37,8 +37,8 @@ pub const FILL_RECT: ShapeKind = 0;
 pub const FILL_OVAL: ShapeKind = 1;
 pub const RECT:  ShapeKind = 2;
 pub const OVAL: ShapeKind = 3;
-pub const TEX_RECT: ShapeKind = 4;//TODO implement textured rect.
-pub const TEX_OVAL: ShapeKind = 5;//TODO implement textured oval.
+pub const TEX_RECT: ShapeKind = 4;
+pub const TEX_OVAL: ShapeKind = 5;
 
 #[repr(C)]
 #[derive(Copy,Clone,Debug,bytemuck::Pod,bytemuck::Zeroable)]

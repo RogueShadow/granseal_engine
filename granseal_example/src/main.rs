@@ -241,7 +241,7 @@ impl GransealGameState for GameState {
             g.color(e.color);
             g.set_rotation(e.angle);
             g.shape(                // pushes a new shape to the vector, with some calculation from state of Graphics.
-                FILL_RECT,
+                e.kind,
                 e.pos.x,
                 e.pos.y,
                 e.size.x,
