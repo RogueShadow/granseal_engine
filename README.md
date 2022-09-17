@@ -15,11 +15,14 @@
 <h3>Features</h3>
 <ul>
 <li>Drawing colored or textured rectangles and ovals with or without an outline.</li>
+<li>Rotation</li>
+<li>Drawing images</li>
+<li>Textured ovals and rectangles.</li>
 </ul>
 <h3>Todo</h3>
 <ul>
+<li>Alpha blending is... dithered? Help me...</li>
 <li>Drawing lines</li>
-<li>Rotation</li>
 <li>Textured shapes</li>
 <li>Drawing Text</li>
 <li>UI Elements</li>
