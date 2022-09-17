@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 
 #[derive(Copy,Clone,Debug)]
 pub struct Color {
@@ -179,7 +180,7 @@ impl Shape {
 
 //TODO builder, for purposes of having state in the building process.
 #[allow(dead_code)]
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct Graphics {
     pub fill_color: Color,
     pub outline_color: Color,
@@ -189,6 +190,8 @@ pub struct Graphics {
     pub position: [f32; 4],
     // x, y, angle, layer(someday)
     positions: Vec<[f32; 4]>,
+    pub(crate) images: HashMap<usize,String>,
+    pub(crate) textures: HashMap<String, crate::TextureInfo>,
 }
 
 
@@ -202,11 +205,15 @@ impl Graphics {
             outline_thickness: 1.0,
             shapes: vec![],
             position: [0.0,0.0,0.0,0.0],
-            positions: vec![]
+            positions: vec![],
+            images: HashMap::new(),
+            textures: HashMap::new(),
         }
     }
     pub fn clear(&mut self) -> &Self {
         self.shapes.clear();
+        self.images.clear();
+        self.positions.clear();
         self
     }
     pub fn color(&mut self, color: Color) -> &Self {
@@ -319,6 +326,22 @@ impl Graphics {
                     .angle(a)
             );
         }
+        self
+    }
+    pub fn image(&mut self,img: &str, x: f32, y: f32) -> &Self {
+        let (x,y,a) = self.apply_position(x,y,0.0);
+
+        let tex_info = self.textures.get(img).unwrap();
+
+        self.shapes.push(
+            Shape::rect(x,y,tex_info.width as f32,tex_info.height as f32)
+                .kind(TEX_RECT)
+                .color(self.fill_color)
+                .angle(a)
+        );
+        self.images.insert(self.shapes.len()-1,String::from(img));
+
+
         self
     }
 }

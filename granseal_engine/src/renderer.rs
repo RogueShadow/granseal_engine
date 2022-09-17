@@ -34,7 +34,6 @@ pub struct StateShapeRender {
     config: wgpu::SurfaceConfiguration,
     pub(crate) size: winit::dpi::PhysicalSize<u32>,
     game_state: Box<dyn GransealGameState>,
-    textures: HashMap<String,TextureInfo>,
     graphics: Graphics,
     shape_buffer: wgpu::Buffer,
     render_pipeline: wgpu::RenderPipeline,
@@ -234,7 +233,6 @@ impl StateShapeRender {
             config,
             size,
             game_state,
-            textures: HashMap::new(),
             graphics,
             shape_buffer,
             render_pipeline,
@@ -248,7 +246,7 @@ impl StateShapeRender {
 
     fn load<P>(&mut self, image: P) where P: AsRef<Path> {
         let path = image.as_ref().clone().to_str().unwrap();
-        if self.textures.contains_key(path) {
+        if self.graphics.textures.contains_key(path) {
             return;
         }
 
@@ -268,7 +266,7 @@ impl StateShapeRender {
             height: img.height(),
         };
 
-        self.textures.insert(path.to_string(),texture_info);
+        self.graphics.textures.insert(path.to_string(),texture_info);
     }
 
     pub(crate) fn resize(&mut self, new_size: winit::dpi::PhysicalSize<u32>) {
@@ -311,6 +309,8 @@ impl StateShapeRender {
     }
 
     pub(crate) fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
+        self.load("happy-tree-alpha.png");
+        self.load("happy-tree.png");
         self.game_state.render(&mut self.graphics);
         let shape_buffer = self.device.create_buffer_init(
             &wgpu::util::BufferInitDescriptor {
@@ -349,12 +349,18 @@ impl StateShapeRender {
                 depth_stencil_attachment: None
             });
 
-            self.load("happy-tree.png");
+
             render_pass.set_pipeline(&self.render_pipeline);
-            render_pass.set_bind_group(0,&self.screen_bind_group,&[]);
-            render_pass.set_bind_group(1, &self.textures.get("happy-tree.png").unwrap().bind_group, &[]);
             render_pass.set_vertex_buffer(0,self.shape_buffer.slice(..));
-            render_pass.draw(0..5 as u32, 0..self.graphics.shapes.len() as u32);
+            render_pass.set_bind_group(0,&self.screen_bind_group,&[]);
+
+            for (i,s) in self.graphics.shapes.iter_mut().enumerate() {
+                let tex = if self.graphics.images.contains_key(&i) {
+                    self.graphics.images.get(&i).unwrap()
+                } else {"happy-tree.png"};
+                render_pass.set_bind_group(1, &self.graphics.textures.get(tex).unwrap().bind_group, &[]);
+                render_pass.draw(0..5 as u32,i as u32..(i+1) as u32);
+            }
         }
 
         self.queue.submit(std::iter::once(encoder.finish()));

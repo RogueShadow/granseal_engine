@@ -1,7 +1,7 @@
 use image::GenericImageView;
 use anyhow::*;
 
-
+#[derive(Debug)]
 pub struct TextureInfo {
     pub(crate) bind_group: wgpu::BindGroup,
     pub(crate) path: String,

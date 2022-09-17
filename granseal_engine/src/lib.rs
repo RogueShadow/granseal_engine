@@ -101,7 +101,6 @@ pub fn start<S>(state: S) where S: GransealGameState + 'static {
 #[cfg_attr(target_arch="wasm32", wasm_bindgen(start))]
 pub async fn run(mut game_state: Box<dyn GransealGameState>) {
 
-
     cfg_if::cfg_if! {
         if #[cfg(target_arch = "wasm32")] {
             std::panic::set_hook(Box::new(console_error_panic_hook::hook));

@@ -248,6 +248,7 @@ impl GransealGameState for GameState {
                 e.size.y
             );
         }
+        g.image("happy-tree-alpha.png",0.0,0.0);
     }
 }
 
