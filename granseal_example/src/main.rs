@@ -2,15 +2,16 @@
 // #![windows_subsystem ="windows"]
 
 use std::{
-    collections::HashMap,
     ops::Index,
     time::Duration,
 };
-use rand_xorshift::XorShiftRng;
+
 use rand::prelude::*;
-use granseal_engine::{GransealGameConfig, events::{Event, Key}, GransealGameState, shape::*, VSyncMode};
+use rand_xorshift::XorShiftRng;
+
+use granseal_engine::{events::{Event, Key}, GransealGameConfig, GransealGameState, shape::*, VSyncMode};
 use granseal_engine::events::KeyState;
-use granseal_engine::renderer::{Castle, StateShapeRender};
+use granseal_engine::renderer::{Castle};
 
 pub struct Vector2d {
     x: f32,
@@ -243,11 +244,7 @@ impl GransealGameState for GameState {
     }
 
     fn render(&mut self, g: &mut Graphics) {
-        if !self.init {
-            g.load("happy-tree.png");
-            g.load("happy-tree-alpha.png");
-            self.init = true;
-        }
+
         if self.clear {g.clear();} // clears shape vector ;; shape is a struct with x,y,w,h,r,g,b,angle,kind of shape
         g.set_translation(self.position.x,self.position.y);
         let r = &mut self.rng;
@@ -263,8 +260,12 @@ impl GransealGameState for GameState {
                 e.size.y
             );
         }
+        g.color(Color::WHITE);
         g.rotate(self.timer.elapsed().as_secs_f32());
-        g.image("happy-tree-alpha.png",110.0,220.0);
+        g.image("happy-tree.png",110.0,220.0);
+        g.set_rotation(0.0);
+        //g.image("Inside 38.png",0.0,0.0);
+        g.image("token.png",0.0,0.0);
     }
 }
 

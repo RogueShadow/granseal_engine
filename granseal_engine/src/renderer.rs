@@ -6,6 +6,7 @@ use std::time::{Duration, Instant};
 use cgmath::Matrix4;
 
 use image::EncodableLayout;
+use wgpu::Color;
 use wgpu::util::DeviceExt;
 use winit::event::WindowEvent;
 use winit::window::Window;
@@ -61,7 +62,7 @@ impl StateShapeRender {
 
         let (device, queue) = adapter.request_device(
             &wgpu::DeviceDescriptor {
-                features: wgpu::Features::SHADER_FLOAT64 ,
+                features: wgpu::Features::empty() ,
                 limits: if cfg!(target_arch = "wasm32") {
                     wgpu::Limits::downlevel_webgl2_defaults()
                 } else {
@@ -158,28 +159,6 @@ impl StateShapeRender {
             source: wgpu::ShaderSource::Wgsl(include_str!("shape_shader.wgsl").into()),
         });
 
-        let texture_bind_group_layout = device.create_bind_group_layout( &wgpu::BindGroupLayoutDescriptor {
-            label: Some("texture_bind_group_layout"),
-            entries: &[
-                wgpu::BindGroupLayoutEntry {
-                    binding: 0,
-                    visibility: wgpu::ShaderStages::FRAGMENT,
-                    ty: wgpu::BindingType::Texture {
-                        sample_type: wgpu::TextureSampleType::Float { filterable: true },
-                        view_dimension: wgpu::TextureViewDimension::D2,
-                        multisampled: false
-                    },
-                    count: None
-                },
-                wgpu::BindGroupLayoutEntry {
-                    binding: 1,
-                    visibility: wgpu::ShaderStages::FRAGMENT,
-                    ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
-                    count: None
-                }
-            ]
-        });
-
         let render_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Shape Render Pipeline Layout"),
@@ -207,7 +186,7 @@ impl StateShapeRender {
                 topology: wgpu::PrimitiveTopology::TriangleStrip,
                 strip_index_format: None,
                 front_face: wgpu::FrontFace::Ccw,
-                cull_mode: None,
+                cull_mode: Some(wgpu::Face::Back),
                 polygon_mode: wgpu::PolygonMode::Fill,
                 unclipped_depth: false,
                 conservative: false,
@@ -322,7 +301,7 @@ impl StateShapeRender {
                         }),
                         store: true,
                     },
-                })],
+                }),],
                 depth_stencil_attachment: None
             });
 
@@ -334,12 +313,11 @@ impl StateShapeRender {
             for (i,s) in self.graphics.shapes.iter_mut().enumerate() {
                 let tex = if self.graphics.images.contains_key(&i) {
                     self.graphics.images.get(&i).unwrap()
-                } else {"happy-tree.png"};
+                } else {"token.png"};
                 render_pass.set_bind_group(1, &self.graphics.textures.get(tex).unwrap().bind_group, &[]);
                 render_pass.draw(0..5 as u32,i as u32..(i+1) as u32);
             }
         }
-
         self.queue.submit(std::iter::once(encoder.finish()));
         output.present();
 

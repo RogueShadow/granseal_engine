@@ -212,7 +212,7 @@ impl Graphics {
                     binding: 0,
                     visibility: wgpu::ShaderStages::FRAGMENT,
                     ty: wgpu::BindingType::Texture {
-                        sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                        sample_type: wgpu::TextureSampleType::Float { filterable: true},
                         view_dimension: wgpu::TextureViewDimension::D2,
                         multisampled: false
                     },
@@ -389,6 +389,7 @@ impl Graphics {
         self
     }
     pub fn image(&mut self,img: &str, x: f32, y: f32) -> &Self {
+        self.load(img);
         let (x,y,a) = self.apply_position(x,y,0.0);
 
         let tex_info = self.textures.get(img).unwrap();
