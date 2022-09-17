@@ -10,7 +10,7 @@ use rand_xorshift::XorShiftRng;
 use rand::prelude::*;
 use granseal_engine::{GransealGameConfig, events::{Event, Key}, GransealGameState, shape::*, VSyncMode};
 use granseal_engine::events::KeyState;
-use granseal_engine::renderer::Castle;
+use granseal_engine::renderer::{Castle, StateShapeRender};
 
 pub struct Vector2d {
     x: f32,
@@ -32,6 +32,7 @@ pub struct Entity {
     velocity: Vector2d,
     color: Color,
     angle: f32,
+    a_vel: f32,
     kind: ShapeKind,
 }
 
@@ -45,6 +46,7 @@ impl Entity {
             velocity: Vector2d::new( r.gen_range(-speed..speed), r.gen_range(-speed..speed)),
             color: Color::rgb(r.gen(),r.gen(),r.gen()),
             angle: r.gen_range(0.0..6.28),
+            a_vel: r.gen_range(-6.0..6.0),
             kind: r.gen_range(0..=5),
         }
     }
@@ -55,6 +57,7 @@ impl Entity {
             velocity: Vector2d::new(0.0,0.0),
             color: Color::WHITE,
             angle: 0.0,
+            a_vel: 0.0,
             kind: FILL_RECT,
         }
     }
@@ -81,6 +84,7 @@ impl Entity {
 }
 
 pub struct GameState {
+    timer: std::time::Instant,
     config: GransealGameConfig,
     position: Vector2d,
     entities: Vec<Entity>,
@@ -89,6 +93,7 @@ pub struct GameState {
     bounce: bool,
     flash: bool,
     rotate: bool,
+    init: bool,
 }
 
 impl GameState {
@@ -146,12 +151,16 @@ impl GameState {
         //             size: Vector2d::new(step as f32, step as f32),
         //             color: Color::rgb(r.gen(),r.gen(),r.gen()),
         //             angle: 0.0,
-        //             kind: RECT
+        //             a_vel: r.gen_range(-6.0..6.0),
+        //             kind: TEX_OVAL
         //         })
         //     }
         // }
+
+        entities.iter_mut().for_each(|f|{f.a_vel= r.gen_range(-6.0..6.0)});
         println!("Entities: {:?}",entities.len());
         Self {
+            timer: std::time::Instant::now(),
             config: GransealGameConfig::new()
                 .title("Press '1' '2' '3' hold '4'")
                 .vsync(VSyncMode::VSyncOff)
@@ -166,6 +175,7 @@ impl GameState {
             bounce: false,
             flash: false,
             rotate: false,
+            init: false,
         }
     }
 }
@@ -223,7 +233,7 @@ impl GransealGameState for GameState {
                 e.pos.y += e.velocity.y * delta.as_secs_f32();
             }
 
-            if self.rotate {e.angle += delta.as_secs_f32();}
+            if self.rotate {e.angle += e.a_vel * delta.as_secs_f32();}
             if e.pos.x <= 0.0 {e.velocity.x *= -1.0}
             if e.pos.y <= 0.0 {e.velocity.y *= -1.0}
             if e.pos.x >= self.config.width as f32 - e.size.x {e.velocity.x *= -1.0}
@@ -233,6 +243,11 @@ impl GransealGameState for GameState {
     }
 
     fn render(&mut self, g: &mut Graphics) {
+        if !self.init {
+            g.load("happy-tree.png");
+            g.load("happy-tree-alpha.png");
+            self.init = true;
+        }
         if self.clear {g.clear();} // clears shape vector ;; shape is a struct with x,y,w,h,r,g,b,angle,kind of shape
         g.set_translation(self.position.x,self.position.y);
         let r = &mut self.rng;
@@ -248,7 +263,8 @@ impl GransealGameState for GameState {
                 e.size.y
             );
         }
-        g.image("happy-tree-alpha.png",0.0,0.0);
+        g.rotate(self.timer.elapsed().as_secs_f32());
+        g.image("happy-tree-alpha.png",110.0,220.0);
     }
 }
 

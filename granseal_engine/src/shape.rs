@@ -1,4 +1,8 @@
 use std::collections::HashMap;
+use std::path::Path;
+use std::rc::Rc;
+use wgpu::{Device, Queue};
+use crate::{Texture, TextureInfo};
 
 #[derive(Copy,Clone,Debug)]
 pub struct Color {
@@ -182,6 +186,8 @@ impl Shape {
 #[allow(dead_code)]
 #[derive(Debug)]
 pub struct Graphics {
+    pub(crate) device: Rc<wgpu::Device>,
+    pub(crate) queue: Rc<wgpu::Queue>,
     pub fill_color: Color,
     pub outline_color: Color,
     pub outline: bool,
@@ -192,13 +198,37 @@ pub struct Graphics {
     positions: Vec<[f32; 4]>,
     pub(crate) images: HashMap<usize,String>,
     pub(crate) textures: HashMap<String, crate::TextureInfo>,
+    pub(crate) texture_bind_group_layout: wgpu::BindGroupLayout,
 }
 
 
 #[allow(dead_code)]
 impl Graphics {
-    pub fn new() -> Self {
+    pub fn new(device: Rc<Device>,queue: Rc<Queue>) -> Self {
+        let texture_bind_group_layout = device.create_bind_group_layout( &wgpu::BindGroupLayoutDescriptor {
+            label: Some("texture_bind_group_layout"),
+            entries: &[
+                wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Texture {
+                        sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                        view_dimension: wgpu::TextureViewDimension::D2,
+                        multisampled: false
+                    },
+                    count: None
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 1,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                    count: None
+                }
+            ]
+        });
         Self {
+            device,
+            queue,
             fill_color: Color::WHITE,
             outline_color: Color::BLACK,
             outline: false,
@@ -208,7 +238,37 @@ impl Graphics {
             positions: vec![],
             images: HashMap::new(),
             textures: HashMap::new(),
+            texture_bind_group_layout,
+
         }
+    }
+    fn info<P>(&mut self,image: P) -> Option<&TextureInfo> where P: AsRef<Path> {
+        let path = image.as_ref().clone().to_str().unwrap();
+        return self.textures.get(path)
+    }
+    pub fn load<P>(&mut self, image: P) where P: AsRef<Path> {
+        let path = image.as_ref().clone().to_str().unwrap();
+        if self.textures.contains_key(path) {
+            return;
+        }
+
+        let img = &image::open(&image).unwrap();
+        let texture = Texture::from_image(
+            &self.device,
+            &self.queue,
+            img,
+            Some(path),
+            &self.texture_bind_group_layout,
+        ).unwrap();
+        let texture_info = TextureInfo {
+            bind_group: texture.bind_group,
+            path: path.to_string(),
+            alias: Some(path.to_string()),
+            width: img.width(),
+            height: img.height(),
+        };
+
+        self.textures.insert(path.to_string(),texture_info);
     }
     pub fn clear(&mut self) -> &Self {
         self.shapes.clear();

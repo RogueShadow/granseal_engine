@@ -141,7 +141,9 @@ pub async fn run(mut game_state: Box<dyn GransealGameState>) {
                 .expect("Couldn't append canvas to document body.");
         }
 
+
     let mut state = StateShapeRender::new(&window, game_state).await;
+
     let mut frames = 0;
     let mut frame_timer = std::time::Instant::now();
     let mut delta = std::time::Instant::now();

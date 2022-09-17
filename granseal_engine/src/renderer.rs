@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::ops::Index;
 use std::path::Path;
+use std::rc::Rc;
 use std::time::{Duration, Instant};
 use cgmath::Matrix4;
 
@@ -29,8 +30,8 @@ impl Castle {
 #[allow(unused)]
 pub struct StateShapeRender {
     surface: wgpu::Surface,
-    device: wgpu::Device,
-    queue: wgpu::Queue,
+    device: std::rc::Rc<wgpu::Device>,
+    queue: std::rc::Rc<wgpu::Queue>,
     config: wgpu::SurfaceConfiguration,
     pub(crate) size: winit::dpi::PhysicalSize<u32>,
     game_state: Box<dyn GransealGameState>,
@@ -39,7 +40,6 @@ pub struct StateShapeRender {
     render_pipeline: wgpu::RenderPipeline,
     screen_buffer: wgpu::Buffer,
     screen_bind_group: wgpu::BindGroup,
-    texture_bind_group_layout: wgpu::BindGroupLayout,
     time_buffer: wgpu::Buffer,
     castle: Castle,
 }
@@ -71,6 +71,8 @@ impl StateShapeRender {
             },
             None,
         ).await.unwrap();
+        let device = Rc::new(device);
+        let queue = Rc::new(queue);
 
         let config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
@@ -85,7 +87,7 @@ impl StateShapeRender {
 
         let key_down = HashMap::new();
 
-        let graphics = Graphics::new();
+        let graphics = Graphics::new(device.clone(),queue.clone());
 
         let shape_buffer = device.create_buffer_init(
             &wgpu::util::BufferInitDescriptor {
@@ -181,7 +183,7 @@ impl StateShapeRender {
         let render_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Shape Render Pipeline Layout"),
-                bind_group_layouts: &[&screen_bind_group_layout,&texture_bind_group_layout],
+                bind_group_layouts: &[&screen_bind_group_layout,&graphics.texture_bind_group_layout],
                 push_constant_ranges: &[],
             });
         let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
@@ -238,36 +240,12 @@ impl StateShapeRender {
             render_pipeline,
             screen_buffer,
             screen_bind_group,
-            texture_bind_group_layout,
             time_buffer,
             castle,
         }
     }
 
-    fn load<P>(&mut self, image: P) where P: AsRef<Path> {
-        let path = image.as_ref().clone().to_str().unwrap();
-        if self.graphics.textures.contains_key(path) {
-            return;
-        }
 
-        let img = &image::open(&image).unwrap();
-        let texture = Texture::from_image(
-            &self.device,
-            &self.queue,
-            img,
-            Some(path),
-            &self.texture_bind_group_layout,
-        ).unwrap();
-        let texture_info = TextureInfo {
-            bind_group: texture.bind_group,
-            path: path.to_string(),
-            alias: Some(path.to_string()),
-            width: img.width(),
-            height: img.height(),
-        };
-
-        self.graphics.textures.insert(path.to_string(),texture_info);
-    }
 
     pub(crate) fn resize(&mut self, new_size: winit::dpi::PhysicalSize<u32>) {
         if new_size.width > 0 && new_size.height > 0 {
@@ -309,8 +287,7 @@ impl StateShapeRender {
     }
 
     pub(crate) fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
-        self.load("happy-tree-alpha.png");
-        self.load("happy-tree.png");
+
         self.game_state.render(&mut self.graphics);
         let shape_buffer = self.device.create_buffer_init(
             &wgpu::util::BufferInitDescriptor {
