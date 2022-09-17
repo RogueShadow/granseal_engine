@@ -18,6 +18,8 @@ fn check_oval2(h: f32, k: f32, x: f32, y: f32, a:  f32, b: f32) -> f32 {
 var<uniform> screen: vec2<f32>;
 @group(0) @binding(1)
 var<uniform> timer: f32;
+@group(0) @binding(2)
+var<uniform> ortho: mat4x4<f32>;
 
 @group(1) @binding(0)
 var t: texture_2d<f32>;
@@ -31,16 +33,18 @@ struct VertexOutput {
     @location(1) pos: vec2<f32>,
     @location(2) size: vec2<f32>,
     @location(3) kind: i32,
-    @location(4) @interpolate(linear,center) tex_coords: vec2<f32>,
+    @location(4) angle: f32,
+    @location(5) @interpolate(linear,center) tex_coords: vec2<f32>,
 };
 
 
 @vertex
 fn vs_main(@builtin(vertex_index) index: u32, in: VertexInput) -> VertexOutput {
-    let aspect = screen.x/screen.y;
     let rotation = mat2x2<f32>(cos(in.angle),-sin(in.angle),sin(in.angle),cos(in.angle));
-    let size = (((vec2<f32>(in.size.x,in.size.y)  ) / screen) );
-    let translation = ((vec2<f32>(in.pos.x,in.pos.y) / screen) - vec2<f32>(0.5,0.5) + size/2.0 ) * 2.0;
+    let size = vec2<f32>(in.size.x,in.size.y);
+    let position = vec2<f32>(in.pos.x,in.pos.y) + size/2.0;
+    let translation = (position/screen);
+    let translation = (vec2<f32>(translation.x,1.0 - translation.y) - 0.5) * 2.0;
 
     var p = vec2<f32>(0.0,0.0);
 
@@ -70,86 +74,52 @@ fn vs_main(@builtin(vertex_index) index: u32, in: VertexInput) -> VertexOutput {
         default: {}
     }
 
-    p = (rotation * p) + translation;
-
-    p.y = -p.y;
-    out.clip_position = vec4<f32>(p,0.0,1.0);
+    out.clip_position = vec4<f32>((rotation * p) / screen + translation,0.0,1.0);
     out.pos = in.pos;
     out.size = in.size;
     out.kind =  in.kind;
     out.color = in.color;
+    out.angle = in.angle;
     return out;
 }
 
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
+    let rotation = mat2x2<f32>(cos(in.angle),-sin(in.angle),sin(in.angle),cos(in.angle));
+    // n, normalized to 0.0-1.0
+    // rn, relative-normalized to 0.0-1.0 from 0.0 at shapes position to 1.0 at shapes size
+    var PixelPos = in.clip_position.xy;
+    var ShapePos = in.pos.xy;
+    var ShapeSize = in.size.xy;
+
+    var nPixelPos = PixelPos / screen;
+    var nShapePos = ShapePos / screen ;
+    var nShapeSize = ShapeSize / screen ;
+
+    var rnShapePos = ((PixelPos - (ShapePos - ShapeSize/4.0)) / ShapeSize);
+
+    var ndcShapePos = (rnShapePos *  2.0 - 1.0);
+
 
     var diffuse_color = textureSample(t,s,in.tex_coords);
+    var ndcTex = in.tex_coords * 2.0 - 0.5;
+
     var color_out = in.color;
 
-    if (in.kind == 0) {
+//    var left = smoothstep(0.0,0.1,rnShapePos.x);
+//    var bottom = smoothstep(0.0,0.1,rnShapePos.y);
+//
+//    var tl = step(vec2<f32>(0.1,0.1),rnShapePos);
+//    var pct = tl.x * tl.y;
+//    var br = step(vec2<f32>(0.1,0.1),1.0 - rnShapePos);
+//    pct *= (br.x * br.y);
 
-    }
-    if (in.kind == 1) {
-        let check = check_oval(
-            in.pos.x + in.size.x/2.0,
-            in.pos.y + in.size.y/2.0,
-            in.clip_position[0],
-            in.clip_position[1],
-            in.size.x / 2.0,
-            in.size.y / 2.0,
-        );
-        if (check) {
-            color_out.a = 0.0;
-        }
-    }
-    if (in.kind == 2) {
-        let thickness = 4.0;
+    var pct = distance(vec2<f32>(0.5,0.5),ndcTex);
+    pct = smoothstep(0.0,0.1,1.0 - pct);
+    let alpha = step(0.1,pct);
 
-        let centerx = in.pos.x + in.pos.x/2.0;
-        let centery = in.pos.y + in.pos.y/2.0;
 
-        let dx = abs(in.clip_position[0] - centerx) + thickness;
-        let dy = abs(in.clip_position[1] - centery) + thickness;
-
-        if (dx > in.pos.x/2.0  || dy > in.pos.y/2.0 ) {} else {
-            color_out.a = 0.0;
-        }
-
-    }
-    if (in.kind == 3) {
-        let thickness = 4.0 / 10.0;
-
-        let check = check_oval2(
-            in.pos.x + in.size.x/2.0,
-            in.pos.y + in.size.y/2.0,
-            in.clip_position[0],
-            in.clip_position[1],
-            in.size.x / 2.0,
-            in.size.y / 2.0,
-        );
-        if (check >= 1.0 || check <= 1.0 - thickness) {
-            color_out.a = 0.0;
-        }
-    }
-    if (in.kind == 4) {
-        color_out = diffuse_color * color_out;
-    }
-    if (in.kind == 5) {
-        let check = check_oval(
-            in.pos.x + in.size.x/2.0,
-            in.pos.y + in.size.y/2.0,
-            in.clip_position[0],
-            in.clip_position[1],
-            in.size.x / 2.0,
-            in.size.y / 2.0,
-        );
-        color_out = diffuse_color * color_out;
-        if (check) {
-            color_out.a = 0.0;
-        }
-    }
-
+    color_out = vec4<f32>(diffuse_color.rgb * pct,diffuse_color.a);
     return color_out;
 }

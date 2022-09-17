@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::ops::Index;
 use std::path::Path;
 use std::time::{Duration, Instant};
+use cgmath::Matrix4;
 
 use image::EncodableLayout;
 use wgpu::util::DeviceExt;
@@ -38,6 +39,7 @@ pub struct StateShapeRender {
     shape_buffer: wgpu::Buffer,
     render_pipeline: wgpu::RenderPipeline,
     screen_buffer: wgpu::Buffer,
+    ortho_buffer: wgpu::Buffer,
     screen_bind_group: wgpu::BindGroup,
     texture_bind_group_layout: wgpu::BindGroupLayout,
     time_buffer: wgpu::Buffer,
@@ -95,6 +97,22 @@ impl StateShapeRender {
             }
         );
 
+        let aspect = (config.width as f32)/(config.height as f32);
+        let ortho = &cgmath::ortho::<f32>(-1.0 * aspect,1.0*aspect,-1.0,1.0,0.0,0.0);
+        let ortho = [
+            ortho.x.x,ortho.x.y,ortho.x.z,ortho.x.w,
+            ortho.y.x,ortho.y.y,ortho.y.z,ortho.y.w,
+            ortho.z.x,ortho.z.y,ortho.z.z,ortho.z.w,
+            ortho.w.x,ortho.w.y,ortho.w.z,ortho.w.w
+        ];
+        let  ortho_buffer = device.create_buffer_init(
+            &wgpu::util::BufferInitDescriptor {
+                label: Some("Projection Matrix"),
+                contents: bytemuck::cast_slice(ortho.as_bytes()),
+                usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST
+            }
+        );
+
         let clear_color = game_state.config().clear_color;
 
         let screen_buffer = device.create_buffer_init(
@@ -132,6 +150,16 @@ impl StateShapeRender {
                         min_binding_size: None
                     },
                     count: None
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 2,
+                    visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None
+                    },
+                    count: None
                 }
             ],
             label: Some("screen_bind_group_layout"),
@@ -146,7 +174,11 @@ impl StateShapeRender {
                 wgpu::BindGroupEntry {
                     binding: 1,
                     resource: time_buffer.as_entire_binding(),
-                }
+                },
+                wgpu::BindGroupEntry {
+                    binding: 2,
+                    resource: ortho_buffer.as_entire_binding(),
+                },
             ],
             label: Some("screen_bind_group"),
         });
@@ -238,6 +270,7 @@ impl StateShapeRender {
             shape_buffer,
             render_pipeline,
             screen_buffer,
+            ortho_buffer,
             screen_bind_group,
             texture_bind_group_layout,
             time_buffer,

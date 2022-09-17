@@ -155,7 +155,7 @@ impl GameState {
             config: GransealGameConfig::new()
                 .title("Press '1' '2' '3' hold '4'")
                 .vsync(VSyncMode::VSyncOff)
-                .clear_color([0.02,0.03,0.05,1.0]),
+                .clear_color([0.2,0.3,0.5,1.0]),
             position: Vector2d {
                 x: 0.0,
                 y: 0.0,
@@ -241,7 +241,7 @@ impl GransealGameState for GameState {
             g.color(e.color);
             g.set_rotation(e.angle);
             g.shape(                // pushes a new shape to the vector, with some calculation from state of Graphics.
-                e.kind,
+                FILL_RECT,
                 e.pos.x,
                 e.pos.y,
                 e.size.x,
