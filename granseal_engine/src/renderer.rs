@@ -1,12 +1,8 @@
 use std::collections::HashMap;
 use std::ops::Index;
-use std::path::Path;
 use std::rc::Rc;
 use std::time::{Duration, Instant};
-use cgmath::Matrix4;
-
 use image::EncodableLayout;
-use wgpu::Color;
 use wgpu::util::DeviceExt;
 use winit::event::WindowEvent;
 use winit::window::Window;
@@ -50,7 +46,7 @@ impl StateShapeRender {
         let timer = std::time::Instant::now();
         let size = window.inner_size();
 
-        let instance = wgpu::Instance::new(wgpu::Backends::all());
+        let instance = wgpu::Instance::new(wgpu::Backends::DX12);
         let surface = unsafe { instance.create_surface(window) };
         let adapter = instance.request_adapter(
             &wgpu::RequestAdapterOptions {
@@ -63,11 +59,7 @@ impl StateShapeRender {
         let (device, queue) = adapter.request_device(
             &wgpu::DeviceDescriptor {
                 features: wgpu::Features::empty() ,
-                limits: if cfg!(target_arch = "wasm32") {
-                    wgpu::Limits::downlevel_webgl2_defaults()
-                } else {
-                    wgpu::Limits::default()
-                },
+                limits: wgpu::Limits::default(),
                 label: None,
             },
             None,
@@ -313,8 +305,17 @@ impl StateShapeRender {
             for (i,s) in self.graphics.shapes.iter_mut().enumerate() {
                 let tex = if self.graphics.images.contains_key(&i) {
                     self.graphics.images.get(&i).unwrap()
-                } else {"token.png"};
-                render_pass.set_bind_group(1, &self.graphics.textures.get(tex).unwrap().bind_group, &[]);
+                } else {"happy-tree.png"};
+                let t = self.graphics.textures.get(tex);
+                match t {
+                    Some(x) => {
+                        render_pass.set_bind_group(1,&x.bind_group, &[]);
+                    },
+                    None => {
+                        let path = std::env::current_dir().unwrap().as_path().to_owned();
+                        println!("Couldn't find texture: {} in path: {:?}",tex,path);
+                    },
+                }
                 render_pass.draw(0..5 as u32,i as u32..(i+1) as u32);
             }
         }

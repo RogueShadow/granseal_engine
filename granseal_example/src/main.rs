@@ -34,6 +34,7 @@ pub struct Entity {
     color: Color,
     angle: f32,
     a_vel: f32,
+    image: Option<String>,
     kind: ShapeKind,
 }
 
@@ -48,7 +49,8 @@ impl Entity {
             color: Color::rgb(r.gen(),r.gen(),r.gen()),
             angle: r.gen_range(0.0..6.28),
             a_vel: r.gen_range(-6.0..6.0),
-            kind: r.gen_range(0..=5),
+            image: None,
+            kind: r.gen_range(0..=3),
         }
     }
     fn new(x: f32, y: f32) -> Self {
@@ -59,6 +61,7 @@ impl Entity {
             color: Color::WHITE,
             angle: 0.0,
             a_vel: 0.0,
+            image: None,
             kind: FILL_RECT,
         }
     }
@@ -80,6 +83,11 @@ impl Entity {
     }
     fn kind(mut self, kind: ShapeKind) -> Self {
         self.kind = kind;
+        self
+    }
+    fn image(mut self, img: String) -> Self {
+        self.image = Some(img);
+        self.kind = TEX_RECT;
         self
     }
 }
@@ -118,7 +126,7 @@ impl GameState {
             Entity::new(800.0 - 64.0 - 64.0,600.0 - 64.0 - 64.0).size(64.0,64.0).color(Color::CYAN).kind(RECT),
             Entity::new( 64.0, 600.0 - 64.0 - 64.0).size(64.0,64.0).color(Color::CYAN).kind(RECT),
 
-            Entity::new(0.0,64.0).size(64.0,64.0).color(Color::WHITE).kind(TEX_RECT),
+            Entity::new(0.0,64.0).size(64.0,64.0).color(Color::WHITE).kind(TEX_RECT).image(String::from("blob.png")),
             Entity::new(800.0 - 64.0,64.0).size(64.0,64.0).color(Color::WHITE).kind(TEX_RECT),
             Entity::new(800.0 - 64.0,600.0 - 128.0).size(64.0,64.0).color(Color::WHITE).kind(TEX_RECT),
             Entity::new( 0.0, 600.0 - 128.0).size(64.0,64.0).color(Color::WHITE).kind(TEX_RECT),
@@ -165,7 +173,7 @@ impl GameState {
             config: GransealGameConfig::new()
                 .title("Press '1' '2' '3' hold '4'")
                 .vsync(VSyncMode::VSyncOff)
-                .clear_color([0.2,0.3,0.5,1.0]),
+                .clear_color([0.0,0.0,0.0,1.0]),
             position: Vector2d {
                 x: 0.0,
                 y: 0.0,
@@ -247,25 +255,26 @@ impl GransealGameState for GameState {
 
         if self.clear {g.clear();} // clears shape vector ;; shape is a struct with x,y,w,h,r,g,b,angle,kind of shape
         g.set_translation(self.position.x,self.position.y);
+        g.image("blob.png",0.0,0.0);
+        g.image("happy-tree.png",500.0,500.0);
         let r = &mut self.rng;
         for e in &mut self.entities {
             if self.flash {e.color = Color::rgb(r.gen(),r.gen(),r.gen());}
             g.color(e.color);
             g.set_rotation(e.angle);
             g.shape(                // pushes a new shape to the vector, with some calculation from state of Graphics.
-                e.kind,
-                e.pos.x,
-                e.pos.y,
-                e.size.x,
-                e.size.y
+            e.kind,
+            e.pos.x,
+            e.pos.y,
+            e.size.x,
+            e.size.y
             );
         }
         g.color(Color::WHITE);
         g.rotate(self.timer.elapsed().as_secs_f32());
-        g.image("happy-tree.png",110.0,220.0);
+        g.image("blob.png",110.0,220.0);
         g.set_rotation(0.0);
         //g.image("Inside 38.png",0.0,0.0);
-        g.image("token.png",0.0,0.0);
     }
 }
 

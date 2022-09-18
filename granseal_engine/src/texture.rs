@@ -34,7 +34,7 @@ impl Texture {
         label: Option<&str>,
         bind_group_layout: &wgpu::BindGroupLayout,
     ) -> Result<Self> {
-        let rgba = img.to_rgba8();
+        let rgba = img.to_rgba32f();
         let dimensions = img.dimensions();
 
         let size = wgpu::Extent3d {
@@ -49,7 +49,7 @@ impl Texture {
                 mip_level_count: 1,
                 sample_count: 1,
                 dimension: wgpu::TextureDimension::D2,
-                format: wgpu::TextureFormat::Rgba8UnormSrgb,
+                format: wgpu::TextureFormat::Rgba32Float,
                 usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
             }
         );
@@ -63,7 +63,7 @@ impl Texture {
             &rgba.as_bytes(),
             wgpu::ImageDataLayout {
                 offset: 0,
-                bytes_per_row: std::num::NonZeroU32::new(4 * dimensions.0),
+                bytes_per_row: std::num::NonZeroU32::new(16 * dimensions.0),
                 rows_per_image: std::num::NonZeroU32::new(dimensions.1),
             },
             size,
@@ -72,13 +72,19 @@ impl Texture {
         let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
         let sampler = device.create_sampler(
             &wgpu::SamplerDescriptor {
+                label,
                 address_mode_u: wgpu::AddressMode::ClampToEdge,
                 address_mode_v: wgpu::AddressMode::ClampToEdge,
                 address_mode_w: wgpu::AddressMode::ClampToEdge,
-                mag_filter: wgpu::FilterMode::Linear,
+                mag_filter: wgpu::FilterMode::Nearest,
                 min_filter: wgpu::FilterMode::Nearest,
                 mipmap_filter: wgpu::FilterMode::Nearest,
-                ..Default::default()
+
+                lod_min_clamp: 0.0,
+                lod_max_clamp: 0.0,
+                compare: None,
+                anisotropy_clamp: None,
+                border_color: None
             }
         );
 

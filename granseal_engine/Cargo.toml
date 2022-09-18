@@ -10,7 +10,7 @@ cfg-if = "1.0.0"
 winit = "0.27.2"
 env_logger = "0.9.0"
 log = "0.4.17"
-wgpu = "0.13.0"
+wgpu = {version = "0.13.1", features = ["default"]}
 pollster = "0.2.5"
 bytemuck = {version = "1.9.1", features = ["derive","extern_crate_alloc"]}
 anyhow = "1.0.58"

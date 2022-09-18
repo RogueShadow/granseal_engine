@@ -1,8 +1,6 @@
 use std::collections::HashMap;
 use std::path::Path;
 use std::rc::Rc;
-use wgpu::{Device, Queue};
-use crate::{Texture, TextureInfo};
 
 #[derive(Copy,Clone,Debug)]
 pub struct Color {
@@ -204,7 +202,7 @@ pub struct Graphics {
 
 #[allow(dead_code)]
 impl Graphics {
-    pub fn new(device: Rc<Device>,queue: Rc<Queue>) -> Self {
+    pub fn new(device: Rc<wgpu::Device>,queue: Rc<wgpu::Queue>) -> Self {
         let texture_bind_group_layout = device.create_bind_group_layout( &wgpu::BindGroupLayoutDescriptor {
             label: Some("texture_bind_group_layout"),
             entries: &[
@@ -212,7 +210,7 @@ impl Graphics {
                     binding: 0,
                     visibility: wgpu::ShaderStages::FRAGMENT,
                     ty: wgpu::BindingType::Texture {
-                        sample_type: wgpu::TextureSampleType::Float { filterable: true},
+                        sample_type: wgpu::TextureSampleType::Float { filterable: false},
                         view_dimension: wgpu::TextureViewDimension::D2,
                         multisampled: false
                     },
@@ -221,12 +219,13 @@ impl Graphics {
                 wgpu::BindGroupLayoutEntry {
                     binding: 1,
                     visibility: wgpu::ShaderStages::FRAGMENT,
-                    ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                    ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::NonFiltering),
                     count: None
                 }
             ]
         });
-        Self {
+
+        let mut s = Self {
             device,
             queue,
             fill_color: Color::WHITE,
@@ -239,10 +238,11 @@ impl Graphics {
             images: HashMap::new(),
             textures: HashMap::new(),
             texture_bind_group_layout,
-
-        }
+        };
+        s.load("token.png");
+        s
     }
-    fn info<P>(&mut self,image: P) -> Option<&TextureInfo> where P: AsRef<Path> {
+    fn info<P>(&mut self,image: P) -> Option<&crate::TextureInfo> where P: AsRef<Path> {
         let path = image.as_ref().clone().to_str().unwrap();
         return self.textures.get(path)
     }
@@ -253,14 +253,14 @@ impl Graphics {
         }
 
         let img = &image::open(&image).unwrap();
-        let texture = Texture::from_image(
+        let texture = crate::Texture::from_image(
             &self.device,
             &self.queue,
             img,
             Some(path),
             &self.texture_bind_group_layout,
         ).unwrap();
-        let texture_info = TextureInfo {
+        let texture_info = crate::TextureInfo {
             bind_group: texture.bind_group,
             path: path.to_string(),
             alias: Some(path.to_string()),
