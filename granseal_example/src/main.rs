@@ -170,7 +170,7 @@ impl GameState {
         Self {
             timer: std::time::Instant::now(),
             config: GransealGameConfig::new()
-                .title("Press '1' '2' '3' hold '4'")
+                .title("Press '1' '2' '3' hold '4' 'F5' to reload images")
                 .vsync(VSyncMode::VSyncOff)
                 .clear_color([0.0,0.0,0.0,1.0]),
             position: Vector2d {

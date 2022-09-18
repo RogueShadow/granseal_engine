@@ -17,13 +17,14 @@
 <li>Drawing colored or textured rectangles and ovals with or without an outline.</li>
 <li>Rotation</li>
 <li>Drawing images</li>
-<li>Textured ovals and rectangles.</li>
+<li>Textured ovals and rectangles</li>
+<li>Supports alpha blending, swimmingly</li>
+<li>Hot reloading of images</li>
 </ul>
 <h3>Todo</h3>
 <ul>
-<li>Alpha blending is... dithered? Help me...</li>
 <li>Drawing lines</li>
-<li>Textured shapes</li>
+<li>Polygons? Maybe</li>
 <li>Drawing Text</li>
 <li>UI Elements</li>
 <li>Playing Sounds</li>

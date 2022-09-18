@@ -46,7 +46,7 @@ impl StateShapeRender {
         let timer = std::time::Instant::now();
         let size = window.inner_size();
 
-        let instance = wgpu::Instance::new(wgpu::Backends::DX12);
+        let instance = wgpu::Instance::new(wgpu::Backends::all());
         let surface = unsafe { instance.create_surface(window) };
         let adapter = instance.request_adapter(
             &wgpu::RequestAdapterOptions {
@@ -184,11 +184,7 @@ impl StateShapeRender {
                 conservative: false,
             },
             depth_stencil: None,
-            multisample: wgpu::MultisampleState {
-                count: 1,
-                mask: !0,
-                alpha_to_coverage_enabled: true,
-            },
+            multisample: wgpu::MultisampleState::default(),
             multiview: None,
         });
 

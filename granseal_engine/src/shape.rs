@@ -277,6 +277,9 @@ impl Graphics {
         if self.textures.contains_key(path) {
             return true;
         }
+        if self.image_errors.contains(&String::from(path)) {
+            return false;
+        }
 
         let img = image::open(&image);
         if img.is_ok() {
