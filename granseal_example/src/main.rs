@@ -43,13 +43,13 @@ impl Entity {
         let speed = 100.0;
         Self {
             pos: Vector2d::new(r.gen::<f32>() * w,r.gen::<f32>() * h),
-            size: Vector2d::new(r.gen_range(16.0..64.00), r.gen_range(16.0..64.00)),
+            size: Vector2d::new(r.gen_range(8.0..128.00), r.gen_range(8.0..128.00)),
             velocity: Vector2d::new( r.gen_range(-speed..speed), r.gen_range(-speed..speed)),
             color: Color::rgb(r.gen(),r.gen(),r.gen()),
             angle: r.gen_range(0.0..6.28),
             a_vel: r.gen_range(-6.0..6.0),
             image: None,
-            kind: r.gen_range(0..=3),
+            kind: r.gen_range(2..=3),
         }
     }
     fn new(x: f32, y: f32) -> Self {

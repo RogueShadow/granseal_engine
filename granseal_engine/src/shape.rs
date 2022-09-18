@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::num::NonZeroI32;
 use std::path::Path;
 use std::rc::Rc;
 use image::{DynamicImage, GenericImage, Rgba};
@@ -104,23 +105,24 @@ pub struct Shape {
     pub alpha: f32,
     pub angle: f32,
     pub kind: ShapeKind,
+    pub thickness: f32,
 }
 
 impl Shape {
-    pub fn new(x: f32, y: f32, width: f32, height: f32, red: f32, green: f32, blue: f32, alpha: f32, angle: f32, kind: ShapeKind) -> Self {
-        Self { x, y, width, height, red, green, blue, alpha, angle, kind }
+    pub fn new(x: f32, y: f32, width: f32, height: f32, red: f32, green: f32, blue: f32, alpha: f32, angle: f32, kind: ShapeKind, thickness: f32) -> Self {
+        Self { x, y, width, height, red, green, blue, alpha, angle, kind , thickness }
     }
     pub fn fill_rect(x: f32, y: f32, w: f32, h: f32) -> Self {
-        Self::new(x, y, w, h, 1.0, 1.0, 1.0, 1.0, 0.0,FILL_RECT)
+        Self::new(x, y, w, h, 1.0, 1.0, 1.0, 1.0, 0.0,FILL_RECT, 4.0)
     }
     pub fn fill_oval(x: f32, y: f32, w: f32, h: f32) -> Self {
-        Self::new(x, y, w, h, 1.0, 1.0, 1.0, 1.0,0.0,  FILL_OVAL)
+        Self::new(x, y, w, h, 1.0, 1.0, 1.0, 1.0,0.0,  FILL_OVAL,4.0)
     }
     pub fn rect(x: f32, y: f32, w: f32, h: f32) -> Self {
-        Self::new(x, y, w, h, 1.0, 1.0, 1.0, 1.0, 0.0, RECT)
+        Self::new(x, y, w, h, 1.0, 1.0, 1.0, 1.0, 0.0, RECT,4.0)
     }
     pub fn oval(x: f32, y: f32, w: f32, h: f32) -> Self {
-        Self::new(x, y, w, h, 1.0, 1.0, 1.0, 1.0, 0.0,OVAL)
+        Self::new(x, y, w, h, 1.0, 1.0, 1.0, 1.0, 0.0,OVAL,4.0)
     }
     pub fn rgb(mut self, r: f32, g: f32, b: f32) -> Self {
         self.red = r;
@@ -176,6 +178,11 @@ impl Shape {
                     shader_location: 4,
                     format: wgpu::VertexFormat::Sint32,
                 },
+                wgpu::VertexAttribute {
+                    offset: (std::mem::size_of::<[f32; 9]>() + std::mem::size_of::<i32>()) as wgpu::BufferAddress,
+                    shader_location: 5,
+                    format: wgpu::VertexFormat::Float32,
+                }
             ]
         }
     }

@@ -20,6 +20,8 @@
 <li>Textured ovals and rectangles</li>
 <li>Supports alpha blending, swimmingly</li>
 <li>Hot reloading of images</li>
+<li>Smoothed(step) oval edges</li>
+<li>Somewhat consistent outline, configable (ovals need work rly)</li>
 </ul>
 <h3>Todo</h3>
 <ul>
