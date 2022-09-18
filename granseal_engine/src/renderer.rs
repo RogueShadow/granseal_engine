@@ -305,7 +305,7 @@ impl StateShapeRender {
             for (i,s) in self.graphics.shapes.iter_mut().enumerate() {
                 let tex = if self.graphics.images.contains_key(&i) {
                     self.graphics.images.get(&i).unwrap()
-                } else {"happy-tree.png"};
+                } else {Graphics::ERROR_IMG};
                 let t = self.graphics.textures.get(tex);
                 match t {
                     Some(x) => {

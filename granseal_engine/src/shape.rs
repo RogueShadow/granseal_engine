@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::path::Path;
 use std::rc::Rc;
+use image::{DynamicImage, GenericImage, Rgba};
 
 #[derive(Copy,Clone,Debug)]
 pub struct Color {
@@ -197,11 +198,13 @@ pub struct Graphics {
     pub(crate) images: HashMap<usize,String>,
     pub(crate) textures: HashMap<String, crate::TextureInfo>,
     pub(crate) texture_bind_group_layout: wgpu::BindGroupLayout,
+    image_errors: Vec<String>,
 }
 
 
 #[allow(dead_code)]
 impl Graphics {
+    pub(crate) const ERROR_IMG: &'static str = "error.png";
     pub fn new(device: Rc<wgpu::Device>,queue: Rc<wgpu::Queue>) -> Self {
         let texture_bind_group_layout = device.create_bind_group_layout( &wgpu::BindGroupLayoutDescriptor {
             label: Some("texture_bind_group_layout"),
@@ -238,42 +241,79 @@ impl Graphics {
             images: HashMap::new(),
             textures: HashMap::new(),
             texture_bind_group_layout,
+            image_errors: vec![],
         };
-        s.load("token.png");
+        s.clear_texture_cache();
         s
     }
     fn info<P>(&mut self,image: P) -> Option<&crate::TextureInfo> where P: AsRef<Path> {
         let path = image.as_ref().clone().to_str().unwrap();
         return self.textures.get(path)
     }
-    pub fn load<P>(&mut self, image: P) where P: AsRef<Path> {
-        let path = image.as_ref().clone().to_str().unwrap();
-        if self.textures.contains_key(path) {
-            return;
-        }
-
-        let img = &image::open(&image).unwrap();
+    pub fn load_dyn(&mut self, img: &DynamicImage, path: &str) {
         let texture = crate::Texture::from_image(
             &self.device,
             &self.queue,
             img,
             Some(path),
             &self.texture_bind_group_layout,
-        ).unwrap();
-        let texture_info = crate::TextureInfo {
-            bind_group: texture.bind_group,
-            path: path.to_string(),
-            alias: Some(path.to_string()),
-            width: img.width(),
-            height: img.height(),
-        };
+        );
+        if texture.is_err() {
+            println!("Error while Loading {} ->  {}",path,texture.err().unwrap());
+            return;
+        } else {
+            let texture_info = crate::TextureInfo {
+                bind_group: texture.unwrap().bind_group,
+                path: path.to_string(),
+                alias: Some(path.to_string()),
+                width: img.width(),
+                height: img.height(),
+            };
+            self.textures.insert(path.to_string(),texture_info);
+        }
+    }
+    pub fn load<P>(&mut self, image: P) -> bool where P: AsRef<Path> {
+        let path = image.as_ref().clone().to_str().unwrap();
+        if self.textures.contains_key(path) {
+            return true;
+        }
 
-        self.textures.insert(path.to_string(),texture_info);
+        let img = image::open(&image);
+        if img.is_ok() {
+            println!("Loading Image: {}",path);
+            let dyn_img = img.unwrap();
+            self.load_dyn(&dyn_img,path);
+            return true
+        }
+        if !self.image_errors.contains(&String::from(path)) {
+            println!("Unable to load image: {} from location: {:?}",path,std::env::current_dir());
+            self.image_errors.push(String::from(path));
+        }
+        return false
     }
     pub fn clear(&mut self) -> &Self {
         self.shapes.clear();
         self.images.clear();
         self.positions.clear();
+        self
+    }
+    pub fn clear_texture_cache(&mut self) -> &Self {
+        self.image_errors.clear();
+        self.textures.clear();
+
+        let mut error = image::DynamicImage::new_rgba8(16,16);
+        for x in 0..error.width() as i32 {
+            for y in 0..error.height() as i32 {
+                let pixel = match (x % 2 == 0,y % 2 == 0) {
+                    (true,true) => Rgba::from([0,0,0,255]),
+                    (true,false) => Rgba::from([255,0,255,255]),
+                    (false,false) => Rgba::from([0,0,0,255]),
+                    (false,true) => Rgba::from([255,0,255,255]),
+                };
+                error.put_pixel(x as u32,y as u32,pixel);
+            }
+        }
+        self.load_dyn(&error, Graphics::ERROR_IMG);
         self
     }
     pub fn color(&mut self, color: Color) -> &Self {
@@ -389,10 +429,14 @@ impl Graphics {
         self
     }
     pub fn image(&mut self,img: &str, x: f32, y: f32) -> &Self {
-        self.load(img);
+        let mut image = img;
+        if !self.load(img) {
+            image = Graphics::ERROR_IMG;
+        }
+
         let (x,y,a) = self.apply_position(x,y,0.0);
 
-        let tex_info = self.textures.get(img).unwrap();
+        let tex_info = self.textures.get(image).unwrap();
 
         self.shapes.push(
             Shape::rect(x,y,tex_info.width as f32,tex_info.height as f32)
@@ -400,7 +444,7 @@ impl Graphics {
                 .color(self.fill_color)
                 .angle(a)
         );
-        self.images.insert(self.shapes.len()-1,String::from(img));
+        self.images.insert(self.shapes.len()-1,String::from(image));
 
 
         self

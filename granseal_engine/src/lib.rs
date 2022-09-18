@@ -86,13 +86,10 @@ pub trait GransealGameState {
     fn render(&mut self, graphics: &mut Graphics);
 }
 
-
 pub fn start<S>(state: S) where S: GransealGameState + 'static {
     pollster::block_on(run(Box::new(state)));
 }
 
-
-#[cfg_attr(target_arch="wasm32", wasm_bindgen(start))]
 pub async fn run(mut game_state: Box<dyn GransealGameState>) {
     env_logger::init();
     let config = game_state.config().clone();

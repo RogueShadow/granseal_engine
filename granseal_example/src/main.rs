@@ -2,7 +2,6 @@
 // #![windows_subsystem ="windows"]
 
 use std::{
-    ops::Index,
     time::Duration,
 };
 
@@ -103,6 +102,7 @@ pub struct GameState {
     flash: bool,
     rotate: bool,
     init: bool,
+    clear_cache: bool,
 }
 
 impl GameState {
@@ -113,7 +113,6 @@ impl GameState {
         for _i in 0..1_00 {
             entities.push(Entity::random(r.gen::<f32>() * 800.0,r.gen::<f32>() * 600.0));
         }
-
 
         let mut test = vec!(
             Entity::new(0.0,0.0).size(64.0,64.0).color(Color::NAVY).kind(FILL_RECT),
@@ -185,10 +184,10 @@ impl GameState {
             flash: false,
             rotate: false,
             init: false,
+            clear_cache: false,
         }
     }
 }
-
 
 impl GransealGameState for GameState {
     fn config(&mut self) -> &mut GransealGameConfig {
@@ -219,6 +218,11 @@ impl GransealGameState for GameState {
                 KeyState::Pressed => {false}
                 KeyState::Released => {true}
             }}
+            Event::KeyEvent {
+                state: KeyState::Pressed,
+                key: Key::F5,
+                ..
+            } => {self.clear_cache = true}
             Event::MouseButton { .. } => {}
             Event::MouseMoved { .. } => {}
             _ => {}
@@ -235,28 +239,30 @@ impl GransealGameState for GameState {
         if castle.key(S) {self.position.y += speed}
         if castle.key(D) {self.position.x += speed}
 
-
         for mut e in &mut self.entities {
             if self.bounce {
                 e.pos.x += e.velocity.x * delta.as_secs_f32();
                 e.pos.y += e.velocity.y * delta.as_secs_f32();
             }
-
             if self.rotate {e.angle += e.a_vel * delta.as_secs_f32();}
             if e.pos.x <= 0.0 {e.velocity.x *= -1.0}
             if e.pos.y <= 0.0 {e.velocity.y *= -1.0}
             if e.pos.x >= self.config.width as f32 - e.size.x {e.velocity.x *= -1.0}
             if e.pos.y >= self.config.height as f32 - e.size.y {e.velocity.y *= -1.0}
         }
-
     }
 
     fn render(&mut self, g: &mut Graphics) {
-
+        if self.clear_cache {
+            self.clear_cache = false;
+            g.clear_texture_cache();
+        }
         if self.clear {g.clear();} // clears shape vector ;; shape is a struct with x,y,w,h,r,g,b,angle,kind of shape
         g.set_translation(self.position.x,self.position.y);
         g.image("blob.png",0.0,0.0);
         g.image("happy-tree.png",500.0,500.0);
+        g.image("token.png", 200.0,0.0);
+        g.image("happy-tree-alpha.png",500.0,200.0);
         let r = &mut self.rng;
         for e in &mut self.entities {
             if self.flash {e.color = Color::rgb(r.gen(),r.gen(),r.gen());}
@@ -274,7 +280,6 @@ impl GransealGameState for GameState {
         g.rotate(self.timer.elapsed().as_secs_f32());
         g.image("blob.png",110.0,220.0);
         g.set_rotation(0.0);
-        //g.image("Inside 38.png",0.0,0.0);
     }
 }
 
