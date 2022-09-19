@@ -95,16 +95,16 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     }
     if (in.kind == 3) { // oval outline
         var d = distance(vec2<f32>(0.5,0.5),ndcPos);
-        pct = step(0.1 - thickness.x,1.0 - d);
+        pct = step(thickness.x,1.0 - d);
         pct *= step(0.9 - thickness.x,d);
         return in.color * pct;
     }
     if (in.kind == 4) { // textured rect
-        return diffuse_color;
+        return in.color * diffuse_color;
     }
     if (in.kind == 5) { // textured oval
         return diffuse_color * in.color * oval(ndcPos);
     }
-    return vec4<f32>(1.0,0.5,1.0,1.0);
+    return vec4<f32>(1.0,0.0,1.0,1.0);
 }
 

@@ -6,10 +6,21 @@ use image::{DynamicImage, GenericImage, Rgba};
 
 #[derive(Copy,Clone,Debug)]
 pub struct Color {
-    r: f32,
-    g: f32,
-    b: f32,
+    pub r: f32,
+    pub g: f32,
+    pub b: f32,
     a: f32,
+}
+
+impl Color {
+    pub fn invert(c: Color) -> Color {
+        return Color {
+            r: 1.0 - c.r,
+            g: 1.0 - c.g,
+            b: 1.0 - c.b,
+            a: c.a,
+        }
+    }
 }
 
 impl Color {
@@ -146,6 +157,10 @@ impl Shape {
     }
     pub fn angle(mut self, a: f32) -> Self {
         self.angle = a;
+        self
+    }
+    pub fn thickness(mut self, t: f32) -> Self {
+        self.thickness = t;
         self
     }
     pub fn desc<'a>() -> wgpu::VertexBufferLayout<'a> {
@@ -374,7 +389,7 @@ impl Graphics {
         return (self.position[0] + x,self.position[1] + y, self.position[2] + a);
     }
 
-    pub fn shape(&mut self, k: ShapeKind, x: f32, y: f32, width: f32, height: f32) -> &Self {
+    fn shape(&mut self, k: ShapeKind, x: f32, y: f32, width: f32, height: f32) -> &Self {
         let (x,y,a) = self.apply_position(x,y,0.0);
         self.shapes.push(
             Shape::rect(x,y,width,height)
@@ -390,6 +405,7 @@ impl Graphics {
           Shape::rect(x,y,width,height)
               .color(self.fill_color)
               .angle(a)
+              .thickness(self.outline_thickness)
         );
         self
     }
@@ -399,6 +415,7 @@ impl Graphics {
             Shape::oval(x,y,width,height)
                 .color(self.fill_color)
                 .angle(a)
+                .thickness(self.outline_thickness)
         );
         self
     }
@@ -415,6 +432,7 @@ impl Graphics {
             self.shapes.push(
                 Shape::rect(x,y,width,height)
                     .color(self.outline_color)
+                    .thickness(self.outline_thickness)
                     .angle(a)
             );
         }
@@ -433,6 +451,7 @@ impl Graphics {
             self.shapes.push(
                 Shape::oval(x,y,width,height)
                     .color(self.outline_color)
+                    .thickness(self.outline_thickness)
                     .angle(a)
             );
         }

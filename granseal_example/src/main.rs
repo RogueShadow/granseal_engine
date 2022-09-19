@@ -4,6 +4,7 @@
 use std::{
     time::Duration,
 };
+use std::borrow::Borrow;
 
 use rand::prelude::*;
 use rand_xorshift::XorShiftRng;
@@ -35,6 +36,7 @@ pub struct Entity {
     a_vel: f32,
     image: Option<String>,
     kind: ShapeKind,
+    thickness: f32,
 }
 
 impl Entity {
@@ -43,13 +45,14 @@ impl Entity {
         let speed = 100.0;
         Self {
             pos: Vector2d::new(r.gen::<f32>() * w,r.gen::<f32>() * h),
-            size: Vector2d::new(r.gen_range(8.0..128.00), r.gen_range(8.0..128.00)),
+            size: Vector2d::new(r.gen_range(16.0..128.00), r.gen_range(16.0..128.00)),
             velocity: Vector2d::new( r.gen_range(-speed..speed), r.gen_range(-speed..speed)),
             color: Color::rgb(r.gen(),r.gen(),r.gen()),
             angle: r.gen_range(0.0..6.28),
             a_vel: r.gen_range(-6.0..6.0),
             image: None,
-            kind: r.gen_range(2..=3),
+            kind: r.gen_range(0..=4),
+            thickness: r.gen_range(2.0..16.0)
         }
     }
     fn new(x: f32, y: f32) -> Self {
@@ -62,6 +65,7 @@ impl Entity {
             a_vel: 0.0,
             image: None,
             kind: FILL_RECT,
+            thickness: 2.0,
         }
     }
     fn size(mut self,w: f32, h: f32) -> Self {
@@ -172,7 +176,7 @@ impl GameState {
             config: GransealGameConfig::new()
                 .title("Press '1' '2' '3' hold '4' 'F5' to reload images")
                 .vsync(VSyncMode::VSyncOff)
-                .clear_color([0.0,0.0,0.0,1.0]),
+                .clear_color([0.48,0.24,0.04,1.0]),
             position: Vector2d {
                 x: 0.0,
                 y: 0.0,
@@ -230,7 +234,7 @@ impl GransealGameState for GameState {
         false
     }
 
-    fn update(&mut self,delta: Duration, castle: &Castle) {
+    fn update(&mut self,delta: Duration, castle: &mut Castle) {
         use Key::*;
 
         let speed = 250.0 * delta.as_secs_f32();
@@ -238,6 +242,7 @@ impl GransealGameState for GameState {
         if castle.key(A) {self.position.x -= speed}
         if castle.key(S) {self.position.y += speed}
         if castle.key(D) {self.position.x += speed}
+        if castle.key(Key4) {castle.clear(false)} else {castle.clear(true)}
 
         for mut e in &mut self.entities {
             if self.bounce {
@@ -257,7 +262,7 @@ impl GransealGameState for GameState {
             self.clear_cache = false;
             g.clear_texture_cache();
         }
-        if self.clear {g.clear();} // clears shape vector ;; shape is a struct with x,y,w,h,r,g,b,angle,kind of shape
+        g.clear();
         g.set_translation(self.position.x,self.position.y);
         g.image("blob.png",0.0,0.0);
         g.image("happy-tree.png",500.0,500.0);
@@ -265,16 +270,19 @@ impl GransealGameState for GameState {
         g.image("happy-tree-alpha.png",500.0,200.0);
         let r = &mut self.rng;
         for e in &mut self.entities {
-            if self.flash {e.color = Color::rgb(r.gen(),r.gen(),r.gen());}
-            g.color(e.color);
+            if self.flash {e.color = Color::new(r.gen(),r.gen(),r.gen(),r.gen());}
+            g.outline_thickness(e.thickness);
+            g.color(Color::new(e.color.r,e.color.g,e.color.b,0.1));
             g.set_rotation(e.angle);
-            g.shape(                // pushes a new shape to the vector, with some calculation from state of Graphics.
-            e.kind,
-            e.pos.x,
-            e.pos.y,
-            e.size.x,
-            e.size.y
-            );
+            g.outline_color(Color::invert(e.color));
+            match e.kind {
+                TEX_RECT => {g.image("blob.png",e.pos.x,e.pos.y);}
+                RECT => {g.rect(e.pos.x,e.pos.y,e.size.x,e.size.y);},
+                OVAL => {g.oval(e.pos.x,e.pos.y,e.size.x,e.size.y);},
+                FILL_RECT => {g.fill_rect(e.pos.x,e.pos.y,e.size.x,e.size.y);},
+                FILL_OVAL => {g.fill_oval(e.pos.x,e.pos.y,e.size.x,e.size.y);},
+                _ => {;}
+            }
         }
         g.color(Color::WHITE);
         g.rotate(self.timer.elapsed().as_secs_f32());

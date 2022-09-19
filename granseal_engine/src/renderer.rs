@@ -3,23 +3,36 @@ use std::ops::Index;
 use std::rc::Rc;
 use std::time::{Duration, Instant};
 use image::EncodableLayout;
+use wgpu::Color;
 use wgpu::util::DeviceExt;
 use winit::event::WindowEvent;
 use winit::window::Window;
 
 use crate::{events, GransealGameState, Graphics, KeyState, map_events, map_present_modes, Shape, Texture, TextureInfo};
 
+#[derive(Copy,Clone,Debug)]
+pub enum GransealError {
+    EventError,
+    AdapterErr,
+    DeviceErr,
+    FormatErr,
+}
+
 pub struct Castle {
     pub key_down: HashMap<events::Key,bool>,
     mouse_pos: [f64; 2],
     clear_color: [f64; 4],
     timer: Instant,
+    pub clear: bool,
 }
 impl Castle {
     pub fn key(&self,k: events::Key) -> bool {
         if self.key_down.contains_key(&k) {
             *self.key_down.index(&k)
         } else {false}
+    }
+    pub fn clear(&mut self,value: bool) {
+        self.clear = value;
     }
 }
 
@@ -42,7 +55,7 @@ pub struct StateShapeRender {
 }
 
 impl StateShapeRender {
-    pub(crate) async fn new(window: &Window, mut game_state: Box<dyn GransealGameState>) -> Self {
+    pub(crate) async fn new(window: &Window, mut game_state: Box<dyn GransealGameState>) -> Result<StateShapeRender,GransealError> {
         let timer = std::time::Instant::now();
         let size = window.inner_size();
 
@@ -54,7 +67,7 @@ impl StateShapeRender {
                 compatible_surface: Some(&surface),
                 force_fallback_adapter: false,
             },
-        ).await.unwrap();
+        ).await.ok_or(GransealError::AdapterErr)?;
 
         let (device, queue) = adapter.request_device(
             &wgpu::DeviceDescriptor {
@@ -63,13 +76,13 @@ impl StateShapeRender {
                 label: None,
             },
             None,
-        ).await.unwrap();
+        ).await.ok().ok_or(GransealError::DeviceErr)?;
         let device = Rc::new(device);
         let queue = Rc::new(queue);
 
         let config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
-            format: surface.get_supported_formats(&adapter).pop().unwrap(),
+            format: surface.get_supported_formats(&adapter).pop().ok_or(GransealError::FormatErr)?,
             width: size.width,
             height: size.height,
             present_mode: map_present_modes(game_state.config().vsync),
@@ -192,10 +205,11 @@ impl StateShapeRender {
             key_down,
             mouse_pos,
             clear_color,
-            timer
+            timer,
+            clear: true,
         };
 
-        StateShapeRender {
+        Ok(StateShapeRender {
             surface,
             device,
             queue,
@@ -209,7 +223,7 @@ impl StateShapeRender {
             screen_bind_group,
             time_buffer,
             castle,
-        }
+        })
     }
 
 
@@ -224,10 +238,10 @@ impl StateShapeRender {
         }
     }
 
-    pub(crate) fn input(&mut self, event: &WindowEvent) -> bool {
+    pub(crate) fn input(&mut self, event: &WindowEvent) -> Result<bool,GransealError> {
         let granseal_event = map_events(event);
         if granseal_event.is_some() {
-            match granseal_event.unwrap() {
+            match granseal_event.ok_or(GransealError::EventError)? {
                 events::Event::KeyEvent {
                     state, key, modifiers: _modifiers
                 } => {
@@ -242,15 +256,15 @@ impl StateShapeRender {
                 }
                 _ => {}
             }
-            if self.game_state.event(&granseal_event.unwrap()) {
-                return true;
+            if self.game_state.event(&granseal_event.ok_or(GransealError::EventError)?) {
+                return Ok(true);
             }
         }
-        return false;
+        return Ok(false);
     }
 
     pub(crate) fn update(&mut self, delta_time: Duration) {
-        self.game_state.update(delta_time, &self.castle);
+        self.game_state.update(delta_time, &mut self.castle);
     }
 
     pub(crate) fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
@@ -281,26 +295,25 @@ impl StateShapeRender {
                     view:  &view,
                     resolve_target: None,
                     ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color {
-                            r: *self.castle.clear_color.get(0).unwrap(),
-                            g: *self.castle.clear_color.get(1).unwrap(),
-                            b: *self.castle.clear_color.get(2).unwrap(),
-                            a: *self.castle.clear_color.get(3).unwrap(),
-                        }),
+                        load: if self.castle.clear {wgpu::LoadOp::Clear(wgpu::Color {
+                            r: self.castle.clear_color[0],
+                            g: self.castle.clear_color[1],
+                            b: self.castle.clear_color[2],
+                            a: self.castle.clear_color[3],
+                        })} else  {wgpu::LoadOp::Load},
                         store: true,
                     },
-                }),],
+                })],
                 depth_stencil_attachment: None
             });
-
 
             render_pass.set_pipeline(&self.render_pipeline);
             render_pass.set_vertex_buffer(0,self.shape_buffer.slice(..));
             render_pass.set_bind_group(0,&self.screen_bind_group,&[]);
 
-            for (i,s) in self.graphics.shapes.iter_mut().enumerate() {
+            for (i, _) in self.graphics.shapes.iter_mut().enumerate() {
                 let tex = if self.graphics.images.contains_key(&i) {
-                    self.graphics.images.get(&i).unwrap()
+                    self.graphics.images.index(&i)
                 } else {Graphics::ERROR_IMG};
                 let t = self.graphics.textures.get(tex);
                 match t {
@@ -308,7 +321,7 @@ impl StateShapeRender {
                         render_pass.set_bind_group(1,&x.bind_group, &[]);
                     },
                     None => {
-                        let path = std::env::current_dir().unwrap().as_path().to_owned();
+                        let path = std::env::current_dir().expect("Couldn't get the current directory.");
                         println!("Couldn't find texture: {} in path: {:?}",tex,path);
                     },
                 }

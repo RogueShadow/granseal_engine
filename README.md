@@ -25,6 +25,9 @@
 </ul>
 <h3>Todo</h3>
 <ul>
+<li>Drawing to Texture</li>
+<li>Post Processing shaders</li>
+<li>Texture Regions / Texture Atlas</li>
 <li>Drawing lines</li>
 <li>Polygons? Maybe</li>
 <li>Drawing Text</li>

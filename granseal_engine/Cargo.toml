@@ -15,20 +15,9 @@ pollster = "0.2.5"
 bytemuck = {version = "1.9.1", features = ["derive","extern_crate_alloc"]}
 anyhow = "1.0.58"
 cgmath = "0.18.0"
+freetype = "0.7.0"
 
 [dependencies.image]
 version = "0.24.2"
 default-features = false
 features = ["png","jpeg"]
-
-[target.'cfg(target_arch = "wasm32")'.dependencies]
-console_error_panic_hook = "0.1.6"
-console_log = "0.2.0"
-wgpu = { version = "0.13.0", features = ["webgl"]}
-wasm-bindgen = "0.2.81"
-wasm-bindgen-futures = "0.4.31"
-web-sys = { version = "0.3.58", features = [
-    "Document",
-    "Window",
-    "Element",
-]}

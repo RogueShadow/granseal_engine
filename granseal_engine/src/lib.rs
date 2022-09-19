@@ -82,7 +82,7 @@ impl GransealGameConfig {
 pub trait GransealGameState {
     fn config(&mut self) -> &mut GransealGameConfig;
     fn event(&mut self, event: &events::Event) -> bool;
-    fn update(&mut self,delta: Duration, castle: &Castle);
+    fn update(&mut self,delta: Duration, castle: &mut Castle);
     fn render(&mut self, graphics: &mut Graphics);
 }
 
@@ -101,9 +101,9 @@ pub async fn run(mut game_state: Box<dyn GransealGameState>) {
             height: config.height,
         })
         .build(&event_loop)
-        .unwrap();
+        .expect("Error creating window.");
 
-    let mut state = StateShapeRender::new(&window, game_state).await;
+    let mut state = StateShapeRender::new(&window, game_state).await.expect("Failed to initialize render engine.");
     let mut frames = 0;
     let mut frame_timer = std::time::Instant::now();
     let mut delta = std::time::Instant::now();
@@ -113,7 +113,7 @@ pub async fn run(mut game_state: Box<dyn GransealGameState>) {
             Event::WindowEvent {
                 ref event,
                 window_id,
-            } if window_id == window.id() => if !state.input(event) {
+            } if window_id == window.id() => if !state.input(event).expect("Error handling input events.") {
                 match event {
                     WindowEvent::CloseRequested
                     | WindowEvent::KeyboardInput {
