@@ -9,6 +9,7 @@ use winit::event::WindowEvent;
 use winit::window::Window;
 
 use crate::{events, GransealGameConfig, GransealGameState, Graphics, KeyState, map_events, map_present_modes, Shape, Texture, TextureInfo};
+use crate::events::Event;
 
 #[derive(Copy,Clone,Debug)]
 pub enum GransealError {
@@ -38,7 +39,7 @@ impl Castle {
 
 
 #[allow(unused)]
-pub struct StateShapeRender {
+pub struct GransealEngine {
     pub(crate) window: winit::window::Window,
     pub engine_cfg: GransealGameConfig,
     surface: wgpu::Surface,
@@ -56,8 +57,8 @@ pub struct StateShapeRender {
     castle: Castle,
 }
 
-impl StateShapeRender {
-    pub(crate) async fn new(window: Window,engine_cfg: GransealGameConfig, mut game_state: Box<dyn GransealGameState>) -> Result<StateShapeRender,GransealError> {
+impl GransealEngine {
+    pub(crate) async fn new(window: Window,engine_cfg: GransealGameConfig, mut game_state: Box<dyn GransealGameState>) -> Result<GransealEngine,GransealError> {
         let timer = std::time::Instant::now();
         let size = window.inner_size();
 
@@ -211,7 +212,7 @@ impl StateShapeRender {
             clear: true,
         };
 
-        Ok(StateShapeRender {
+        Ok(GransealEngine {
             window,
             engine_cfg,
             surface,
@@ -260,7 +261,7 @@ impl StateShapeRender {
                 }
                 _ => {}
             }
-            if self.game_state.event(&granseal_event.ok_or(GransealError::EventError)?) {
+            if self.game_state.event(&mut self.graphics, &mut self.castle, &granseal_event.ok_or(GransealError::EventError)?) {
                 return Ok(true);
             }
         }
@@ -268,12 +269,11 @@ impl StateShapeRender {
     }
 
     pub(crate) fn update(&mut self, delta_time: Duration) {
-        self.game_state.update(delta_time, &mut self.castle);
+        self.game_state.event(&mut self.graphics,&mut self.castle,&Event::Update(delta_time));
     }
 
     pub(crate) fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
-
-        self.game_state.render(&mut self.graphics);
+        self.game_state.event(&mut self.graphics,&mut self.castle,&Event::Draw);
         let shape_buffer = self.device.create_buffer_init(
             &wgpu::util::BufferInitDescriptor {
                 label: Some("Shape Buffer"),

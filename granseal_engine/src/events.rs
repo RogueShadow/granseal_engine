@@ -1,4 +1,4 @@
-
+use std::time::Duration;
 
 #[derive(Copy, Clone, Debug)]
 pub enum Event {
@@ -16,6 +16,8 @@ pub enum Event {
     MouseMoved {
         position: [f64; 2],
     },
+    Draw,
+    Update(Duration),
 }
 
 
@@ -100,10 +102,10 @@ pub fn map_events(event: &winit::event::WindowEvent) -> Option<Event> {
 
 fn map_mouse_buttons(button: &winit::event::MouseButton) -> MouseButton {
     match button {
-        winit::event::MouseButton::Left => {MouseButton::Left}
-        winit::event::MouseButton::Right => {MouseButton::Right}
-        winit::event::MouseButton::Middle => {MouseButton::Middle}
-        winit::event::MouseButton::Other(b) => {MouseButton::Other(*b)}
+        winit::event::MouseButton::Left => MouseButton::Left,
+        winit::event::MouseButton::Right => MouseButton::Right,
+        winit::event::MouseButton::Middle => MouseButton::Middle,
+        winit::event::MouseButton::Other(b) => MouseButton::Other(*b),
     }
 }
 

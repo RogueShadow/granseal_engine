@@ -190,47 +190,7 @@ impl GameState {
             clear_cache: false,
         }
     }
-}
-
-impl GransealGameState for GameState {
-    fn event(&mut self, event: &Event) -> bool {
-        match event {
-            Event::KeyEvent {
-                state: KeyState::Pressed,
-                key: Key::Key1,
-                ..
-            } => {self.bounce = !self.bounce}
-            Event::KeyEvent {
-                state: KeyState::Pressed,
-                key: Key::Key2,
-                ..
-            } => {self.flash = !self.flash}
-            Event::KeyEvent {
-                state: KeyState::Pressed,
-                key: Key::Key3,
-                ..
-            } => {self.rotate = !self.rotate}
-            Event::KeyEvent {
-                state,
-                key: Key::Key4,
-                ..
-            } => {self.clear = match state {
-                KeyState::Pressed => {false}
-                KeyState::Released => {true}
-            }}
-            Event::KeyEvent {
-                state: KeyState::Pressed,
-                key: Key::F5,
-                ..
-            } => {self.clear_cache = true}
-            Event::MouseButton { .. } => {}
-            Event::MouseMoved { .. } => {}
-            _ => {}
-        }
-        false
-    }
-
-    fn update(&mut self,delta: Duration, castle: &mut Castle) {
+    fn update(&mut self,delta: &Duration, castle: &mut Castle) {
         use Key::*;
 
         let speed = 250.0 * delta.as_secs_f32();
@@ -252,7 +212,6 @@ impl GransealGameState for GameState {
             if e.pos.y >= self.height as f32 - e.size.y {e.velocity.y *= -1.0}
         }
     }
-
     fn render(&mut self, g: &mut Graphics) {
         if self.clear_cache {
             self.clear_cache = false;
@@ -284,6 +243,48 @@ impl GransealGameState for GameState {
         g.rotate(self.timer.elapsed().as_secs_f32());
         g.image("blob.png",110.0,220.0);
         g.set_rotation(0.0);
+    }
+
+}
+
+impl GransealGameState for GameState {
+    fn event(&mut self,g: &mut Graphics,c: &mut Castle, event: &Event) -> bool {
+        match event {
+            Event::KeyEvent {
+                state: KeyState::Pressed,
+                key: Key::Key1,
+                ..
+            } => {self.bounce = !self.bounce}
+            Event::KeyEvent {
+                state: KeyState::Pressed,
+                key: Key::Key2,
+                ..
+            } => {self.flash = !self.flash}
+            Event::KeyEvent {
+                state: KeyState::Pressed,
+                key: Key::Key3,
+                ..
+            } => {self.rotate = !self.rotate}
+            Event::KeyEvent {
+                state,
+                key: Key::Key4,
+                ..
+            } => {self.clear = match state {
+                KeyState::Pressed => {false}
+                KeyState::Released => {true}
+            }}
+            Event::KeyEvent {
+                state: KeyState::Pressed,
+                key: Key::F5,
+                ..
+            } => {self.clear_cache = true}
+            Event::MouseButton { .. } => {}
+            Event::MouseMoved { .. } => {}
+            Event::Draw => self.render(g),
+            Event::Update(delta) => self.update(delta,c),
+            _ => {}
+        }
+        false
     }
 }
 

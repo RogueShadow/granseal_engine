@@ -14,7 +14,7 @@ use winit::{
 };
 
 use crate::events::{KeyState, map_events};
-use crate::renderer::{Castle, StateShapeRender};
+use crate::renderer::{Castle, GransealEngine};
 use crate::shape::*;
 use crate::texture::{Texture, TextureInfo};
 
@@ -85,13 +85,11 @@ impl GransealGameConfig {
 }
 
 pub trait GransealGameState {
-    fn event(&mut self, event: &events::Event) -> bool;
-    fn update(&mut self,delta: Duration, castle: &mut Castle);
-    fn render(&mut self, graphics: &mut Graphics);
+    fn event(&mut self, g:  &mut Graphics, castle:  &mut Castle, event: &events::Event) -> bool;
 }
 
-pub fn start<S>(state: S, config: GransealGameConfig) where S: GransealGameState + 'static {
-    pollster::block_on(run(Box::new(state), config));
+pub fn start<S>(engine: S, config: GransealGameConfig) where S: GransealGameState + 'static {
+    pollster::block_on(run(Box::new(engine), config));
 }
 
 pub async fn run(mut game_state: Box<dyn GransealGameState>, config: GransealGameConfig) {
@@ -106,7 +104,7 @@ pub async fn run(mut game_state: Box<dyn GransealGameState>, config: GransealGam
         .build(&event_loop)
         .expect("Error creating window.");
 
-    let mut state = StateShapeRender::new(window, config,game_state).await.expect("Failed to initialize render engine.");
+    let mut state = GransealEngine::new(window, config, game_state).await.expect("Failed to initialize render engine.");
     let mut frames = 0;
     let mut frame_timer = std::time::Instant::now();
     let mut delta = std::time::Instant::now();
