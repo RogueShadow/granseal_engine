@@ -96,8 +96,9 @@ impl Entity {
 }
 
 pub struct GameState {
+    width: i32,
+    height: i32,
     timer: std::time::Instant,
-    config: GransealGameConfig,
     position: Vector2d,
     entities: Vec<Entity>,
     rng: XorShiftRng,
@@ -110,7 +111,7 @@ pub struct GameState {
 }
 
 impl GameState {
-    fn new() -> Self {
+    fn new(width: i32, height: i32) -> Self {
         let mut entities = vec![];
         let mut r = XorShiftRng::from_rng(rand::thread_rng()).unwrap();
 
@@ -172,11 +173,9 @@ impl GameState {
         entities.iter_mut().for_each(|f|{f.a_vel= r.gen_range(-6.0..6.0)});
         println!("Entities: {:?}",entities.len());
         Self {
+            width,
+            height,
             timer: std::time::Instant::now(),
-            config: GransealGameConfig::new()
-                .title("Press '1' '2' '3' hold '4' 'F5' to reload images")
-                .vsync(VSyncMode::VSyncOff)
-                .clear_color([0.48,0.24,0.04,1.0]),
             position: Vector2d {
                 x: 0.0,
                 y: 0.0,
@@ -194,9 +193,6 @@ impl GameState {
 }
 
 impl GransealGameState for GameState {
-    fn config(&mut self) -> &mut GransealGameConfig {
-        &mut self.config
-    }
     fn event(&mut self, event: &Event) -> bool {
         match event {
             Event::KeyEvent {
@@ -252,8 +248,8 @@ impl GransealGameState for GameState {
             if self.rotate {e.angle += e.a_vel * delta.as_secs_f32();}
             if e.pos.x <= 0.0 {e.velocity.x *= -1.0}
             if e.pos.y <= 0.0 {e.velocity.y *= -1.0}
-            if e.pos.x >= self.config.width as f32 - e.size.x {e.velocity.x *= -1.0}
-            if e.pos.y >= self.config.height as f32 - e.size.y {e.velocity.y *= -1.0}
+            if e.pos.x >= self.width as f32 - e.size.x {e.velocity.x *= -1.0}
+            if e.pos.y >= self.height as f32 - e.size.y {e.velocity.y *= -1.0}
         }
     }
 
@@ -292,5 +288,12 @@ impl GransealGameState for GameState {
 }
 
 fn main() {
-    granseal_engine::start(GameState::new());
+    let width = 1024;
+    let height = 768;
+    granseal_engine::start(GameState::new(width,height),
+                           GransealGameConfig::new()
+                                .title("Press '1' '2' '3' hold '4' 'F5' to reload images".to_string())
+                               .size(width,height)
+                                .vsync(VSyncMode::VSyncOff)
+                                .clear_color([0.48,0.24,0.04,1.0]));
 }

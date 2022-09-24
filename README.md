@@ -25,7 +25,7 @@
 </ul>
 <h3>Todo</h3>
 <ul>
-<li>Drawing to Texture</li>
+<li>Render to Texture</li>
 <li>Post Processing shaders</li>
 <li>Texture Regions / Texture Atlas</li>
 <li>Drawing lines</li>
@@ -34,4 +34,6 @@
 <li>UI Elements</li>
 <li>Playing Sounds</li>
 <li>Everything</li>
+<li>Organize Thoughts, Organize Code</li>
+<li>Consistent user interface</li>
 </ul>

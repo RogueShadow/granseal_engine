@@ -46,11 +46,11 @@ fn map_present_modes(mode: VSyncMode) -> wgpu::PresentMode {
     }
 }
 
-#[derive(Clone,Copy)]
+#[derive(Clone,Debug)]
 pub struct GransealGameConfig {
     pub width: i32,
     pub height: i32,
-    pub title: &'static str,
+    pub title: String,
     pub vsync: VSyncMode,
     pub clear_color: [f64;4],
 }
@@ -58,14 +58,14 @@ pub struct GransealGameConfig {
 impl GransealGameConfig {
     pub fn new() -> Self {
         Self {
-            title: "Granseal Engine",
+            title: "Granseal Engine".to_string(),
             width: 800,
             height: 600,
             vsync: VSyncMode::VSyncOn,
             clear_color: [0.0,0.0,0.0,1.0],
         }
     }
-    pub fn title(mut self, title: &'static str) -> Self {
+    pub fn title(mut self, title: String) -> Self {
         self.title = title;
         self
     }
@@ -77,25 +77,28 @@ impl GransealGameConfig {
         self.clear_color = color;
         self
     }
+    pub fn size(mut self, width: i32, height: i32) -> Self {
+        self.width = width;
+        self.height = height;
+        self
+    }
 }
 
 pub trait GransealGameState {
-    fn config(&mut self) -> &mut GransealGameConfig;
     fn event(&mut self, event: &events::Event) -> bool;
     fn update(&mut self,delta: Duration, castle: &mut Castle);
     fn render(&mut self, graphics: &mut Graphics);
 }
 
-pub fn start<S>(state: S) where S: GransealGameState + 'static {
-    pollster::block_on(run(Box::new(state)));
+pub fn start<S>(state: S, config: GransealGameConfig) where S: GransealGameState + 'static {
+    pollster::block_on(run(Box::new(state), config));
 }
 
-pub async fn run(mut game_state: Box<dyn GransealGameState>) {
+pub async fn run(mut game_state: Box<dyn GransealGameState>, config: GransealGameConfig) {
     env_logger::init();
-    let config = game_state.config().clone();
     let event_loop = EventLoop::new();
     let window = WindowBuilder::new()
-        .with_title(config.title)
+        .with_title(&config.title)
         .with_inner_size(winit::dpi::PhysicalSize {
             width: config.width,
             height: config.height,
@@ -103,7 +106,7 @@ pub async fn run(mut game_state: Box<dyn GransealGameState>) {
         .build(&event_loop)
         .expect("Error creating window.");
 
-    let mut state = StateShapeRender::new(&window, game_state).await.expect("Failed to initialize render engine.");
+    let mut state = StateShapeRender::new(window, config,game_state).await.expect("Failed to initialize render engine.");
     let mut frames = 0;
     let mut frame_timer = std::time::Instant::now();
     let mut delta = std::time::Instant::now();
@@ -113,7 +116,7 @@ pub async fn run(mut game_state: Box<dyn GransealGameState>) {
             Event::WindowEvent {
                 ref event,
                 window_id,
-            } if window_id == window.id() => if !state.input(event).expect("Error handling input events.") {
+            } if window_id == state.window.id() => if !state.input(event).expect("Error handling input events.") {
                 match event {
                     WindowEvent::CloseRequested
                     | WindowEvent::KeyboardInput {
@@ -134,14 +137,14 @@ pub async fn run(mut game_state: Box<dyn GransealGameState>) {
                     _ => {}
                 }
             }
-            Event::RedrawRequested(window_id) if window_id == window.id() => {
+            Event::RedrawRequested(window_id) if window_id == state.window.id() => {
                 state.update(delta.elapsed());
                 delta = std::time::Instant::now();
                 match state.render() {
                     Ok(_) => {
                         frames += 1;
                         if frame_timer.elapsed().as_secs_f64() > 1.0 {
-                            window.set_title(format!("{}: {}",config.title,frames).as_str());
+                            state.window.set_title(format!("{}: {}", &state.engine_cfg.title, frames).as_str());
                             frames = 0;
                             frame_timer = std::time::Instant::now();
                         }
@@ -152,7 +155,7 @@ pub async fn run(mut game_state: Box<dyn GransealGameState>) {
                 }
             }
             Event::MainEventsCleared => {
-                window.request_redraw();
+                state.window.request_redraw();
             }
             _ => {}
         }

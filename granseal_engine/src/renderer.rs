@@ -8,7 +8,7 @@ use wgpu::util::DeviceExt;
 use winit::event::WindowEvent;
 use winit::window::Window;
 
-use crate::{events, GransealGameState, Graphics, KeyState, map_events, map_present_modes, Shape, Texture, TextureInfo};
+use crate::{events, GransealGameConfig, GransealGameState, Graphics, KeyState, map_events, map_present_modes, Shape, Texture, TextureInfo};
 
 #[derive(Copy,Clone,Debug)]
 pub enum GransealError {
@@ -39,10 +39,12 @@ impl Castle {
 
 #[allow(unused)]
 pub struct StateShapeRender {
+    pub(crate) window: winit::window::Window,
+    pub engine_cfg: GransealGameConfig,
     surface: wgpu::Surface,
     device: std::rc::Rc<wgpu::Device>,
     queue: std::rc::Rc<wgpu::Queue>,
-    config: wgpu::SurfaceConfiguration,
+    pub(crate) surface_cfg: wgpu::SurfaceConfiguration,
     pub(crate) size: winit::dpi::PhysicalSize<u32>,
     game_state: Box<dyn GransealGameState>,
     graphics: Graphics,
@@ -55,12 +57,12 @@ pub struct StateShapeRender {
 }
 
 impl StateShapeRender {
-    pub(crate) async fn new(window: &Window, mut game_state: Box<dyn GransealGameState>) -> Result<StateShapeRender,GransealError> {
+    pub(crate) async fn new(window: Window,engine_cfg: GransealGameConfig, mut game_state: Box<dyn GransealGameState>) -> Result<StateShapeRender,GransealError> {
         let timer = std::time::Instant::now();
         let size = window.inner_size();
 
         let instance = wgpu::Instance::new(wgpu::Backends::all());
-        let surface = unsafe { instance.create_surface(window) };
+        let surface = unsafe { instance.create_surface(&window) };
         let adapter = instance.request_adapter(
             &wgpu::RequestAdapterOptions {
                 power_preference: wgpu::PowerPreference::HighPerformance,
@@ -85,7 +87,7 @@ impl StateShapeRender {
             format: surface.get_supported_formats(&adapter).pop().ok_or(GransealError::FormatErr)?,
             width: size.width,
             height: size.height,
-            present_mode: map_present_modes(game_state.config().vsync),
+            present_mode: map_present_modes(engine_cfg.vsync),
         };
         surface.configure(&device, &config);
 
@@ -103,7 +105,7 @@ impl StateShapeRender {
             }
         );
 
-        let clear_color = game_state.config().clear_color;
+        let clear_color = engine_cfg.clear_color;
 
         let screen_buffer = device.create_buffer_init(
             &wgpu::util::BufferInitDescriptor {
@@ -210,10 +212,12 @@ impl StateShapeRender {
         };
 
         Ok(StateShapeRender {
+            window,
+            engine_cfg,
             surface,
             device,
             queue,
-            config,
+            surface_cfg: config,
             size,
             game_state,
             graphics,
@@ -231,9 +235,9 @@ impl StateShapeRender {
     pub(crate) fn resize(&mut self, new_size: winit::dpi::PhysicalSize<u32>) {
         if new_size.width > 0 && new_size.height > 0 {
             self.size = new_size;
-            self.config.width = new_size.width;
-            self.config.height = new_size.height;
-            self.surface.configure(&self.device,&self.config);
+            self.surface_cfg.width = new_size.width;
+            self.surface_cfg.height = new_size.height;
+            self.surface.configure(&self.device,&self.surface_cfg);
             self.queue.write_buffer(&self.screen_buffer, 0, bytemuck::cast_slice([new_size.width as f32,new_size.height as f32].as_bytes()));
         }
     }
