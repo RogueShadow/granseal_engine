@@ -18,6 +18,8 @@ pub enum Event {
     },
     Draw,
     Update(Duration),
+    Load,
+    Resized(u32,u32),
 }
 
 

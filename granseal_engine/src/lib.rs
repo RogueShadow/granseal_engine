@@ -1,4 +1,5 @@
-extern crate core;
+
+
 use std::{
     time::Duration,
 };
@@ -97,6 +98,7 @@ pub async fn run(mut game_state: Box<dyn GransealGameState>, config: GransealGam
     let event_loop = EventLoop::new();
     let window = WindowBuilder::new()
         .with_title(&config.title)
+        .with_resizable(false)
         .with_inner_size(winit::dpi::PhysicalSize {
             width: config.width,
             height: config.height,
@@ -104,17 +106,19 @@ pub async fn run(mut game_state: Box<dyn GransealGameState>, config: GransealGam
         .build(&event_loop)
         .expect("Error creating window.");
 
-    let mut state = GransealEngine::new(window, config, game_state).await.expect("Failed to initialize render engine.");
+    let mut engine = GransealEngine::new(window, config, game_state).await.expect("Failed to initialize render engine.");
     let mut frames = 0;
     let mut frame_timer = std::time::Instant::now();
     let mut delta = std::time::Instant::now();
+
+    engine.event(events::Event::Load);
 
     event_loop.run(move |event, _, control_flow| {
         match event {
             Event::WindowEvent {
                 ref event,
                 window_id,
-            } if window_id == state.window.id() => if !state.input(event).expect("Error handling input events.") {
+            } if window_id == engine.window.id() => if !engine.input(event).expect("Error handling input events.") {
                 match event {
                     WindowEvent::CloseRequested
                     | WindowEvent::KeyboardInput {
@@ -127,33 +131,33 @@ pub async fn run(mut game_state: Box<dyn GransealGameState>, config: GransealGam
                         ..
                     } => *control_flow = ControlFlow::Exit,
                     WindowEvent::Resized(physical_size) => {
-                        state.resize(*physical_size);
+                        engine.resize(*physical_size);
                     }
                     WindowEvent::ScaleFactorChanged { new_inner_size, ..} => {
-                        state.resize( **new_inner_size);
+                        engine.resize( **new_inner_size);
                     }
                     _ => {}
                 }
             }
-            Event::RedrawRequested(window_id) if window_id == state.window.id() => {
-                state.update(delta.elapsed());
+            Event::RedrawRequested(window_id) if window_id == engine.window.id() => {
+                engine.update(delta.elapsed());
                 delta = std::time::Instant::now();
-                match state.render() {
+                match engine.render() {
                     Ok(_) => {
                         frames += 1;
                         if frame_timer.elapsed().as_secs_f64() > 1.0 {
-                            state.window.set_title(format!("{}: {}", &state.engine_cfg.title, frames).as_str());
+                            engine.window.set_title(format!("{}: {}", &engine.engine_cfg.title, frames).as_str());
                             frames = 0;
                             frame_timer = std::time::Instant::now();
                         }
                     }
-                    Err(wgpu::SurfaceError::Lost) => state.resize(state.size),
+                    Err(wgpu::SurfaceError::Lost) => engine.resize(engine.size),
                     Err(wgpu::SurfaceError::OutOfMemory) => *control_flow = ControlFlow::Exit,
                     Err(e) => eprintln!("{:?}",e),
                 }
             }
             Event::MainEventsCleared => {
-                state.window.request_redraw();
+                engine.window.request_redraw();
             }
             _ => {}
         }

@@ -1,9 +1,10 @@
+
 use std::collections::HashMap;
 use std::ops::Index;
 use std::rc::Rc;
 use std::time::{Duration, Instant};
 use image::EncodableLayout;
-use wgpu::Color;
+use wgpu::{BufferAddress, Color, Extent3d, TextureDimension, TextureFormat, TextureUsages};
 use wgpu::util::DeviceExt;
 use winit::event::WindowEvent;
 use winit::window::Window;
@@ -26,6 +27,7 @@ pub struct Castle {
     timer: Instant,
     pub clear: bool,
 }
+
 impl Castle {
     pub fn key(&self,k: events::Key) -> bool {
         if self.key_down.contains_key(&k) {
@@ -47,7 +49,7 @@ pub struct GransealEngine {
     queue: std::rc::Rc<wgpu::Queue>,
     pub(crate) surface_cfg: wgpu::SurfaceConfiguration,
     pub(crate) size: winit::dpi::PhysicalSize<u32>,
-    game_state: Box<dyn GransealGameState>,
+    pub(crate) game_state: Box<dyn GransealGameState>,
     graphics: Graphics,
     shape_buffer: wgpu::Buffer,
     render_pipeline: wgpu::RenderPipeline,
@@ -241,6 +243,7 @@ impl GransealEngine {
             self.surface.configure(&self.device,&self.surface_cfg);
             self.queue.write_buffer(&self.screen_buffer, 0, bytemuck::cast_slice([new_size.width as f32,new_size.height as f32].as_bytes()));
         }
+        self.event(Event::Resized(new_size.width,new_size.height));
     }
 
     pub(crate) fn input(&mut self, event: &WindowEvent) -> Result<bool,GransealError> {
@@ -261,7 +264,7 @@ impl GransealEngine {
                 }
                 _ => {}
             }
-            if self.game_state.event(&mut self.graphics, &mut self.castle, &granseal_event.ok_or(GransealError::EventError)?) {
+            if self.event(granseal_event.ok_or(GransealError::EventError)?) {
                 return Ok(true);
             }
         }
@@ -269,11 +272,11 @@ impl GransealEngine {
     }
 
     pub(crate) fn update(&mut self, delta_time: Duration) {
-        self.game_state.event(&mut self.graphics,&mut self.castle,&Event::Update(delta_time));
+        self.event(Event::Update(delta_time));
     }
 
     pub(crate) fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
-        self.game_state.event(&mut self.graphics,&mut self.castle,&Event::Draw);
+        self.event(Event::Draw);
         let shape_buffer = self.device.create_buffer_init(
             &wgpu::util::BufferInitDescriptor {
                 label: Some("Shape Buffer"),
@@ -288,6 +291,7 @@ impl GransealEngine {
 
         let output = self.surface.get_current_texture()?;
         let view = output.texture.create_view(&wgpu::TextureViewDescriptor::default());
+
         let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
             label: Some("Render Encoder"),
         });
@@ -315,6 +319,7 @@ impl GransealEngine {
             render_pass.set_vertex_buffer(0,self.shape_buffer.slice(..));
             render_pass.set_bind_group(0,&self.screen_bind_group,&[]);
 
+
             for (i, _) in self.graphics.shapes.iter_mut().enumerate() {
                 let tex = if self.graphics.images.contains_key(&i) {
                     self.graphics.images.index(&i)
@@ -336,5 +341,8 @@ impl GransealEngine {
         output.present();
 
         Ok(())
+    }
+    pub fn event(&mut self, e: Event) -> bool {
+        self.game_state.event(&mut self.graphics,&mut self.castle,&e)
     }
 }

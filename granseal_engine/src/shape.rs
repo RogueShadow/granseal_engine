@@ -3,6 +3,7 @@ use std::num::NonZeroI32;
 use std::path::Path;
 use std::rc::Rc;
 use image::{DynamicImage, GenericImage, Rgba};
+use wgpu::TextureView;
 
 #[derive(Copy,Clone,Debug)]
 pub struct Color {
@@ -249,6 +250,7 @@ impl Graphics {
                 }
             ]
         });
+
 
         let mut s = Self {
             device,

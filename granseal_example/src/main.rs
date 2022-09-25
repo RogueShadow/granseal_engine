@@ -55,7 +55,7 @@ impl Entity {
             thickness: r.gen_range(2.0..16.0)
         }
     }
-    fn new(x: f32, y: f32) -> Self {
+    fn new(x: f32, y: f32) -> Self{
         Self {
             pos: Vector2d::new(x,y),
             size: Vector2d::new(1.0,1.0),
@@ -119,36 +119,38 @@ impl GameState {
             entities.push(Entity::random(r.gen::<f32>() * 800.0,r.gen::<f32>() * 600.0));
         }
 
+        let w = width as f32;
+        let h = height as f32;
         let mut test = vec!(
             Entity::new(0.0,0.0).size(64.0,64.0).color(Color::NAVY).kind(FILL_RECT),
-            Entity::new(800.0 - 64.0,0.0).size(64.0,64.0).color(Color::NAVY).kind(FILL_RECT),
-            Entity::new(800.0 - 64.0,600.0 - 64.0).size(64.0,64.0).color(Color::NAVY).kind(FILL_RECT),
-            Entity::new( 0.0, 600.0 - 64.0).size(64.0,64.0).color(Color::NAVY).kind(FILL_RECT),
+            Entity::new(w - 64.0,0.0).size(64.0,64.0).color(Color::NAVY).kind(FILL_RECT),
+            Entity::new(w - 64.0,h - 64.0).size(64.0,64.0).color(Color::NAVY).kind(FILL_RECT),
+            Entity::new( 0.0, h - 64.0).size(64.0,64.0).color(Color::NAVY).kind(FILL_RECT),
 
             Entity::new(64.0,64.0).size(64.0,64.0).color(Color::CYAN).kind(RECT),
-            Entity::new(800.0 - 64.0 - 64.0,64.0).size(64.0,64.0).color(Color::CYAN).kind(RECT),
-            Entity::new(800.0 - 64.0 - 64.0,600.0 - 64.0 - 64.0).size(64.0,64.0).color(Color::CYAN).kind(RECT),
-            Entity::new( 64.0, 600.0 - 64.0 - 64.0).size(64.0,64.0).color(Color::CYAN).kind(RECT),
+            Entity::new(w - 64.0 - 64.0,64.0).size(64.0,64.0).color(Color::CYAN).kind(RECT),
+            Entity::new(w - 64.0 - 64.0,h - 64.0 - 64.0).size(64.0,64.0).color(Color::CYAN).kind(RECT),
+            Entity::new( 64.0, h - 64.0 - 64.0).size(64.0,64.0).color(Color::CYAN).kind(RECT),
 
             Entity::new(0.0,64.0).size(64.0,64.0).color(Color::WHITE).kind(TEX_RECT).image(String::from("blob.png")),
-            Entity::new(800.0 - 64.0,64.0).size(64.0,64.0).color(Color::WHITE).kind(TEX_RECT),
-            Entity::new(800.0 - 64.0,600.0 - 128.0).size(64.0,64.0).color(Color::WHITE).kind(TEX_RECT),
-            Entity::new( 0.0, 600.0 - 128.0).size(64.0,64.0).color(Color::WHITE).kind(TEX_RECT),
+            Entity::new(w - 64.0,64.0).size(64.0,64.0).color(Color::WHITE).kind(TEX_RECT),
+            Entity::new(w - 64.0,h - 128.0).size(64.0,64.0).color(Color::WHITE).kind(TEX_RECT),
+            Entity::new( 0.0, h - 128.0).size(64.0,64.0).color(Color::WHITE).kind(TEX_RECT),
 
             Entity::new(64.0,128.0).size(64.0,64.0).color(Color::WHITE).kind(TEX_OVAL),
-            Entity::new(800.0 - 64.0 - 64.0,128.0).size(64.0,64.0).color(Color::WHITE).kind(TEX_OVAL),
-            Entity::new(800.0 - 64.0 - 64.0,600.0 - 128.0 - 64.0).size(64.0,64.0).color(Color::WHITE).kind(TEX_OVAL),
-            Entity::new( 64.0, 600.0 - 64.0 - 128.0).size(64.0,64.0).color(Color::WHITE).kind(TEX_OVAL),
+            Entity::new(w - 64.0 - 64.0,128.0).size(64.0,64.0).color(Color::WHITE).kind(TEX_OVAL),
+            Entity::new(w - 64.0 - 64.0,h - 128.0 - 64.0).size(64.0,64.0).color(Color::WHITE).kind(TEX_OVAL),
+            Entity::new( 64.0, h - 64.0 - 128.0).size(64.0,64.0).color(Color::WHITE).kind(TEX_OVAL),
 
             Entity::new(128.0,128.0).size(64.0,64.0).color(Color::MAGENTA).kind(OVAL),
-            Entity::new(800.0 - 128.0 - 64.0,128.0).size(64.0,64.0).color(Color::MAGENTA).kind(OVAL),
-            Entity::new(800.0 - 128.0 - 64.0,600.0 - 128.0 - 64.0).size(64.0,64.0).color(Color::MAGENTA).kind(OVAL),
-            Entity::new( 128.0, 600.0 - 128.0 - 64.0).size(64.0,64.0).color(Color::MAGENTA).kind(OVAL),
+            Entity::new(w - 128.0 - 64.0,128.0).size(64.0,64.0).color(Color::MAGENTA).kind(OVAL),
+            Entity::new(w - 128.0 - 64.0,h - 128.0 - 64.0).size(64.0,64.0).color(Color::MAGENTA).kind(OVAL),
+            Entity::new( 128.0, h - 128.0 - 64.0).size(64.0,64.0).color(Color::MAGENTA).kind(OVAL),
 
             Entity::new(192.0,192.0).size(64.0,64.0).color(Color::RED).kind(FILL_OVAL),
-            Entity::new(800.0 - 256.0,192.0).size(64.0,64.0).color(Color::RED).kind(FILL_OVAL),
-            Entity::new(800.0 - 256.0,600.0 - 256.0).size(64.0,64.0).color(Color::RED).kind(FILL_OVAL),
-            Entity::new( 192.0, 600.0 - 256.0).size(64.0,64.0).color(Color::RED).kind(FILL_OVAL),
+            Entity::new(w - 256.0,192.0).size(64.0,64.0).color(Color::RED).kind(FILL_OVAL),
+            Entity::new(w - 256.0,h - 256.0).size(64.0,64.0).color(Color::RED).kind(FILL_OVAL),
+            Entity::new( 192.0, h - 256.0).size(64.0,64.0).color(Color::RED).kind(FILL_OVAL),
         );
 
         entities.append(&mut test);
@@ -295,6 +297,6 @@ fn main() {
                            GransealGameConfig::new()
                                 .title("Press '1' '2' '3' hold '4' 'F5' to reload images".to_string())
                                .size(width,height)
-                                .vsync(VSyncMode::VSyncOff)
+                                .vsync(VSyncMode::VSyncOn)
                                 .clear_color([0.48,0.24,0.04,1.0]));
 }
